@@ -5,12 +5,7 @@ table {
   font-family: "Open Sans", serif;
   border-collapse: collapse;
   border: none; /* Rimuove i bordi della tabella */
-}
-table td.shrink{
-    white-space: nowrap
-}
-table td.expand{
-    width: 99%
+  table-layout: fixed; /* Imposta la larghezza delle colonne fissa */
 }
 
 td, th {
