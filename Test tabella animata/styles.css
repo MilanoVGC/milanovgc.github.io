@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&display=swap');
+table {
+  width: 100%;
+  font-size: 30px;
+  font-family: "Open Sans", serif;
+  border-collapse: collapse;
+  border: none; /* Rimuove i bordi della tabella */
+}
+
+td, th {
+  padding: 8px;
+  text-align: center;
+}
+
+td {
+  position: relative;
+  opacity: 0;
+  transform: translateX(0);
+  transition: opacity 1s, transform 1s;
+}
+
+tr:nth-child(even) td {
+  background-color: #f2f2f2;
+}
+
+.enter-row {
+  animation: enter-row 1s forwards;
+}
+
+.enter-left {
+  animation: enter-left 1s forwards;
+}
+
+.enter-right {
+  animation: enter-right 1s forwards;
+}
+
+@keyframes enter-row {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes enter-left {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes enter-right {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+body, html, .main {
+  height: 100%;
+}
+
+section {
+  min-height: 100%;
+}
