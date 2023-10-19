@@ -8,21 +8,32 @@ table {
   table-layout: fixed; /* Imposta la larghezza delle colonne fissa */
 }
 
+body {
+  color: white;
+}
 td, th {
   padding: 8px;
   text-align: center;
   white-space: normal; /* Aggiunto questa riga */
 }
 
+th{
+  background-color: #0061c4;
+}
 td {
   position: relative;
   opacity: 0;
   transform: translateX(0);
   transition: opacity 1s, transform 1s;
+
 }
 
 tr:nth-child(even) td {
-  background-color: #f2f2f2;
+  background-color: #007eff;
+}
+
+tr:nth-child(odd) td {
+  background-color: #0061c4;
 }
 
 .enter-row {
