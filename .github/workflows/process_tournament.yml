@@ -1,11 +1,12 @@
-name: Process Tournament XML Upload
+name: Process Tournament TDF Upload
 
-# Trigger this workflow when a .xml file is pushed to the 'incoming' directory on the main branch
+# Trigger this workflow when a .tdf file is pushed to the 'incoming' directory on the main branch
 on:
   push:
     branches:
       - main # Or your default branch name (e.g., master)
     paths:
+      # MODIFIED: Trigger on .tdf files
       - 'incoming/**.tdf'
 
 # Permissions needed for the Action to commit changes back to the repository
@@ -31,30 +32,33 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y xmlstarlet
 
-      - name: Find Uploaded XML
-        id: find_xml
+      - name: Find Uploaded TDF
+        id: find_file # Renamed id slightly for clarity, though 'find_xml' would still work
         run: |
-          # Find the first .xml file in incoming/. More robust scripts could handle multiple.
-          XML_FILE=$(find incoming -name '*.xml' -print -quit)
-          if [ -z "$XML_FILE" ]; then
-            echo "No XML file found in incoming/. Exiting."
+          # MODIFIED: Find the first .tdf file in incoming/
+          TDF_FILE=$(find incoming -name '*.tdf' -print -quit)
+          if [ -z "$TDF_FILE" ]; then
+            echo "No TDF file found in incoming/. Exiting."
             exit 1
           fi
-          echo "Found XML file: $XML_FILE"
-          echo "xml_file_path=$XML_FILE" >> $GITHUB_OUTPUT
+          echo "Found TDF file: $TDF_FILE"
+          # Use the same output name for consistency with the next step
+          echo "file_path=$TDF_FILE" >> $GITHUB_OUTPUT
 
       - name: Process Tournament File
         id: process_file # Give this step an id to reference its outputs
         run: |
-          XML_FILE="${{ steps.find_xml.outputs.xml_file_path }}"
-          echo "Processing file: $XML_FILE"
+          # Uses the output from the previous step
+          INPUT_FILE="${{ steps.find_file.outputs.file_path }}"
+          echo "Processing file: $INPUT_FILE"
 
-          # Extract tournament name from XML
-          TOURNAMENT_NAME=$(xmlstarlet sel -t -v '/tournament/data/name' "$XML_FILE")
+          # Extract tournament name from XML content (should work for TDF if it's XML)
+          TOURNAMENT_NAME=$(xmlstarlet sel -t -v '/tournament/data/name' "$INPUT_FILE")
           if [ -z "$TOURNAMENT_NAME" ]; then
-            echo "Could not extract tournament name from $XML_FILE. Using filename as fallback."
+            echo "Could not extract tournament name from $INPUT_FILE. Using filename as fallback."
             # Fallback: Use filename without extension if name tag is missing
-            BASENAME=$(basename "$XML_FILE" .xml)
+            # MODIFIED: Use .tdf extension in basename
+            BASENAME=$(basename "$INPUT_FILE" .tdf)
             TOURNAMENT_NAME=${BASENAME//_/ } # Replace underscores with spaces
           fi
           echo "Original Tournament Name: $TOURNAMENT_NAME"
@@ -121,12 +125,12 @@ jobs:
               <script src="../assets/script.js"></script>
           </body>
           </html>
-          EOF
+EOF
           echo "Generated $TOURNAMENT_FOLDER/index.html"
 
-          # Move the XML file to the target location
-          mv "$XML_FILE" "$TOURNAMENT_FOLDER/data/tournament_data.xml"
-          echo "Moved XML to $TOURNAMENT_FOLDER/data/tournament_data.xml"
+          # Move the TDF file to the target location, renaming it to .xml as expected by script.js
+          mv "$INPUT_FILE" "$TOURNAMENT_FOLDER/data/tournament_data.xml"
+          echo "Moved TDF to $TOURNAMENT_FOLDER/data/tournament_data.xml"
 
           # Set outputs for this step
           echo "tournament_folder=$TOURNAMENT_FOLDER" >> $GITHUB_OUTPUT
@@ -169,6 +173,7 @@ jobs:
           EOF
 
           # Find all tournament directories (excluding '.', 'assets', 'incoming', '.github')
+          # This command ALREADY excludes .github, so no change needed here.
           find . -maxdepth 1 -mindepth 1 -type d ! -path './assets' ! -path './incoming' ! -path './.github' -print0 | while IFS= read -r -d $'\0' dir; do
               FOLDER_NAME=$(basename "$dir")
               # Use the folder name (sanitized) as link text - simpler than mapping back
