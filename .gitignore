@@ -1,0 +1,13 @@
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# VS Code specific
+.vscode/
+
+# Log files
+*.log
+
+# Don't commit files directly into incoming via git (use web UI)
+# Can be useful if you sometimes test locally by putting files here
+# incoming/*.xml
