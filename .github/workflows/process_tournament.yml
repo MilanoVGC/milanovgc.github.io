@@ -6,7 +6,7 @@ on:
     branches:
       - main # Or your default branch name (e.g., master)
     paths:
-      # MODIFIED: Trigger on .tdf files
+      # Trigger on .tdf files
       - 'incoming/**.tdf'
 
 # Permissions needed for the Action to commit changes back to the repository
@@ -33,16 +33,16 @@ jobs:
           sudo apt-get install -y xmlstarlet
 
       - name: Find Uploaded TDF
-        id: find_file # Renamed id slightly for clarity, though 'find_xml' would still work
+        id: find_file # Renamed id slightly for clarity
         run: |
-          # MODIFIED: Find the first .tdf file in incoming/
+          # Find the first .tdf file in incoming/
           TDF_FILE=$(find incoming -name '*.tdf' -print -quit)
           if [ -z "$TDF_FILE" ]; then
             echo "No TDF file found in incoming/. Exiting."
             exit 1
           fi
           echo "Found TDF file: $TDF_FILE"
-          # Use the same output name for consistency with the next step
+          # Use a consistent output name
           echo "file_path=$TDF_FILE" >> $GITHUB_OUTPUT
 
       - name: Process Tournament File
@@ -57,7 +57,7 @@ jobs:
           if [ -z "$TOURNAMENT_NAME" ]; then
             echo "Could not extract tournament name from $INPUT_FILE. Using filename as fallback."
             # Fallback: Use filename without extension if name tag is missing
-            # MODIFIED: Use .tdf extension in basename
+            # Use .tdf extension in basename
             BASENAME=$(basename "$INPUT_FILE" .tdf)
             TOURNAMENT_NAME=${BASENAME//_/ } # Replace underscores with spaces
           fi
@@ -76,6 +76,7 @@ jobs:
           mkdir -p "$TOURNAMENT_FOLDER/data"
 
           # Create the index.html file for this specific tournament
+          # IMPORTANT: Ensure the 'EOF' below starts at the beginning of its line
           cat << EOF > "$TOURNAMENT_FOLDER/index.html"
           <!DOCTYPE html>
           <html lang="en">
@@ -140,6 +141,7 @@ EOF
         run: |
           echo "Generating root index.html..."
           # Start the HTML file
+          # IMPORTANT: Ensure the 'EOF' below starts at the beginning of its line
           cat << EOF > index.html
           <!DOCTYPE html>
           <html lang="en">
@@ -170,7 +172,7 @@ EOF
                               </tr>
                           </thead>
                           <tbody>
-          EOF
+EOF
 
           # Find all tournament directories (excluding '.', 'assets', 'incoming', '.github')
           # This command ALREADY excludes .github, so no change needed here.
@@ -179,12 +181,14 @@ EOF
               # Use the folder name (sanitized) as link text - simpler than mapping back
               # Add a row to the table for each tournament folder found
               echo "Adding row for $FOLDER_NAME"
+              # Append lines to the index.html file
               echo "                              <tr>" >> index.html
               echo "                                  <td><a href=\"./$FOLDER_NAME/\">$FOLDER_NAME</a></td>" >> index.html
               echo "                              </tr>" >> index.html
           done
 
           # Close the HTML structure
+          # IMPORTANT: Ensure the 'EOF' below starts at the beginning of its line
           cat << EOF >> index.html
                           </tbody>
                       </table>
@@ -192,7 +196,7 @@ EOF
               </main>
           </body>
           </html>
-          EOF
+EOF
           echo "Generated root index.html"
 
       - name: Commit and Push Changes
