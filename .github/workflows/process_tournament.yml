@@ -1,0 +1,138 @@
+name: Process Tournament XML Upload
+
+# Trigger this workflow when a .xml file is pushed to the 'incoming' directory on the main branch
+on:
+  push:
+    branches:
+      - main # Or your default branch name (e.g., master)
+    paths:
+      - 'incoming/**.tdf'
+
+# Permissions needed for the Action to commit changes back to the repository
+permissions:
+  contents: write # Allow writing repository content
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest # Use the latest Ubuntu runner
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history to compare changes if needed
+
+      - name: Install xmlstarlet
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xmlstarlet
+
+      # Find the XML file that triggered the workflow.
+      # This simple approach assumes only one relevant XML change per push.
+      # A more robust solution might analyze 'git diff' for complex scenarios.
+      - name: Find Uploaded XML
+        id: find_xml
+        run: |
+          XML_FILE=$(find incoming -name '*.xml' -print -quit)
+          if [ -z "$XML_FILE" ]; then
+            echo "No XML file found in incoming/. Exiting."
+            exit 1 # Exit if no XML found (shouldn't happen with trigger path, but safe)
+          fi
+          echo "Processing file: $XML_FILE"
+          echo "xml_file_path=$XML_FILE" >> $GITHUB_OUTPUT
+
+      - name: Process Tournament File
+        run: |
+          XML_FILE="${{ steps.find_xml.outputs.xml_file_path }}"
+
+          # Extract tournament name from XML
+          TOURNAMENT_NAME=$(xmlstarlet sel -t -v '/tournament/data/name' "$XML_FILE")
+          if [ -z "$TOURNAMENT_NAME" ]; then
+            echo "Could not extract tournament name from $XML_FILE. Exiting."
+            exit 1 # Exit if name is missing
+          fi
+          echo "Tournament Name: $TOURNAMENT_NAME"
+
+          # Sanitize tournament name for folder path (replace spaces, remove unsafe chars)
+          # Basic example: replace spaces with hyphens, remove non-alphanumeric/hyphens
+          SANITIZED_NAME=$(echo "$TOURNAMENT_NAME" | sed -e 's/ /-/g' -e 's/[^A-Za-z0-9-]//g')
+          if [ -z "$SANITIZED_NAME" ]; then
+            echo "Sanitized name is empty. Using 'Unnamed-Tournament'. Check original name."
+            SANITIZED_NAME="Unnamed-Tournament-$(date +%s)" # Add timestamp to avoid collision
+          fi
+          TOURNAMENT_FOLDER="$SANITIZED_NAME"
+          echo "Target Folder: $TOURNAMENT_FOLDER"
+
+          # Create target directory structure
+          mkdir -p "$TOURNAMENT_FOLDER/data"
+
+          # Create the index.html file for this tournament
+          # It links to the shared assets directory
+          cat << EOF > "$TOURNAMENT_FOLDER/index.html"
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>${TOURNAMENT_NAME} - Pairings</title>
+              <!-- Google Font (assuming Poppins) -->
+              <link rel="preconnect" href="https://fonts.googleapis.com">
+              <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+              <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+              <!-- Link to shared CSS file -->
+              <link rel="stylesheet" href="../assets/style.css">
+          </head>
+          <body>
+              <header>
+                  <div class="container">
+                       <h1 id="tournament-name">Tournament Pairings</h1> <!-- Script will update this -->
+                       <p id="tournament-info"></p>
+                       <!-- Update status span will be added here by JS -->
+                  </div>
+              </header>
+
+              <main>
+                  <div class="container">
+                      <div class="controls">
+                          <nav id="round-tabs"></nav>
+                          <input type="text" id="search-input" placeholder="Search by Player Name...">
+                      </div>
+                      <div id="pairings-container">
+                          <h2 id="current-round-title"></h2>
+                          <table id="pairings-table">
+                              <thead>
+                                  <tr>
+                                      <th>Table</th>
+                                      <th>Player 1</th>
+                                      <th>Player 2</th>
+                                  </tr>
+                              </thead>
+                              <tbody id="pairings-body"></tbody>
+                          </table>
+                           <p id="loading-message">Loading pairings...</p>
+                           <!-- Optional: Add placeholder for 'no search results' message -->
+                           <!-- <p id="no-search-results" style="display:none; text-align: center; margin-top: 15px; color: #6c757d;">No players found matching your search.</p> -->
+                      </div>
+                  </div>
+              </main>
+
+              <!-- Link to shared JavaScript file -->
+              <script src="../assets/script.js"></script>
+          </body>
+          </html>
+          EOF
+
+          echo "Generated $TOURNAMENT_FOLDER/index.html"
+
+          # Move the XML file to the target location, overwriting if exists
+          mv "$XML_FILE" "$TOURNAMENT_FOLDER/data/tournament_data.xml"
+          echo "Moved XML to $TOURNAMENT_FOLDER/data/tournament_data.xml"
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add . # Add all changes (new folder, moved file)
+          # Commit only if there are staged changes
+          git diff --staged --quiet || git commit -m "Automated: Processed tournament upload for '${{ steps.process_tournament_file.outputs.tournament_name }}'"
+          git push
