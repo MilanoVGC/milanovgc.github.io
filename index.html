@@ -4,18 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Available Tournaments</title>
-    <link rel="stylesheet" href="./assets/style.css"> <!-- Link to styles -->
+    <!-- Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Link to shared CSS file -->
+    <link rel="stylesheet" href="./assets/style.css">
 </head>
 <body>
     <header>
         <div class="container">
              <h1>Available Tournaments</h1>
-             <p>No tournaments processed yet. Upload an XML file to the 'incoming' folder via GitHub.</p>
+             <p>Select a tournament below to view pairings.</p>
         </div>
     </header>
     <main>
         <div class="container">
-            <!-- Tournament list table will be generated here by the Action -->
+            <table class="tournament-list-table">
+                <thead>
+                    <tr>
+                        <th>Tournament Name</th>
+                    </tr>
+                </thead>
+                <tbody>
+                              <tr>
+                                  <td><a href="./Test-Crico/">Test-Crico</a></td>
+                              </tr>
+                              <tr>
+                                  <td><a href="./.git/">.git</a></td>
+                              </tr>
+                </tbody>
+            </table>
         </div>
     </main>
 </body>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Crico - Pairings</title>
+    <!-- Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Link to shared CSS file -->
+    <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+             <h1 id="tournament-name">Test Crico</h1> <!-- Set tournament name directly -->
+             <p id="tournament-info"></p> <!-- Script updates city/country -->
+             <!-- Update status span will be added here by JS -->
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            <div class="controls">
+                <nav id="round-tabs"></nav>
+                <input type="text" id="search-input" placeholder="Search by Player Name...">
+            </div>
+            <div id="pairings-container">
+                <h2 id="current-round-title"></h2>
+                <table id="pairings-table">
+                    <thead>
+                        <tr>
+                            <th>Table</th>
+                            <th>Player 1</th>
+                            <th>Player 2</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pairings-body"></tbody>
+                </table>
+                 <p id="loading-message">Loading pairings...</p>
+                 <!-- <p id="no-search-results" style="display:none; text-align: center; margin-top: 15px; color: #6c757d;">No players found matching your search.</p> -->
+            </div>
+        </div>
+    </main>
+    <!-- Link to shared JavaScript file -->
+    <script src="../assets/script.js"></script>
+</body>
+</html>
