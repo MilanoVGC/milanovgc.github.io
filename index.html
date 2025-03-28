@@ -27,15 +27,28 @@
                     </tr>
                 </thead>
                 <tbody>
-                              <tr>
-                                  <td><a href="./Test-Crico/">Test-Crico</a></td>
-                              </tr>
-                              <tr>
-                                  <td><a href="./.git/">.git</a></td>
-                              </tr>
+EOF # <<< MAKE SURE THIS EOF IS INDENTED EXACTLY LIKE THE SCRIPT LINES ABOVE IT (10 spaces total) AND HAS NO EXTRA WHITESPACE
+
+# Find all tournament directories (excluding '.', 'assets', 'incoming', '.github')
+# This command ALREADY excludes .github, so no change needed here.
+find . -maxdepth 1 -mindepth 1 -type d ! -path './assets' ! -path './incoming' ! -path './.github' -print0 | while IFS= read -r -d $'\0' dir; do
+    FOLDER_NAME=
+    # Use the folder name (sanitized) as link text - simpler than mapping back
+    # Add a row to the table for each tournament folder found
+    echo "Adding row for "
+    # Append lines to the index.html file
+    echo "                              <tr>" >> index.html
+    echo "                                  <td><a href=\".//\"></a></td>" >> index.html
+    echo "                              </tr>" >> index.html
+done
+
+# Close the HTML structure using heredoc append
+cat << EOF >> index.html
                 </tbody>
             </table>
         </div>
     </main>
 </body>
 </html>
+EOF # <<< MAKE SURE THIS EOF IS INDENTED EXACTLY LIKE THE SCRIPT LINES ABOVE IT (10 spaces total) AND HAS NO EXTRA WHITESPACE
+echo "Generated root index.html"
