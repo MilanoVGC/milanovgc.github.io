@@ -48,7 +48,7 @@ jobs:
         run: |
           INPUT_FILE="${{ steps.find_file.outputs.file_path }}"
           echo "Processing file: $INPUT_FILE"
-          TOURNAMENT_NAME=$(xmlstarlet sel -t -v '/tournament/data/name' "$INPUT_FILE" 2>/dev/null || echo "") # Handle potential error
+          TOURNAMENT_NAME=$(xmlstarlet sel -t -v '/tournament/data/name' "$INPUT_FILE" 2>/dev/null || echo "")
           if [ -z "$TOURNAMENT_NAME" ]; then
             echo "Could not extract tournament name. Using filename fallback."
             BASENAME=$(basename "$INPUT_FILE" .tdf)
@@ -62,6 +62,7 @@ jobs:
           mkdir -p "$TOURNAMENT_FOLDER/data"
 
           # Generate index.html for the specific tournament (with results-table class)
+          # (HTML content is the same as before)
           cat << EOF > "$TOURNAMENT_FOLDER/index.html"
           <!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>${TOURNAMENT_NAME} - Pairings & Standings</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet"> <link rel="stylesheet" href="../assets/style.css"> </head> <body> <header> <div class="container"> <h1 id="tournament-name">${TOURNAMENT_NAME}</h1> <p id="tournament-info"></p> <p style="margin-top: 5px;"><a href="../index.html" style="font-size: 0.9em;">← Back to Tournament List</a></p> </div> </header> <main> <div class="container"> <div class="controls"> <nav id="round-tabs"></nav> <div class="search-container"> <input type="text" id="search-input" placeholder="Search by Player Name..."> <button type="button" id="clear-search-btn" class="clear-search-button" title="Clear search">×</button> </div> </div> <div id="pairings-container"> <h2 id="current-round-title"></h2> <table id="pairings-table" class="results-table"> <thead> <tr> <th>Table</th> <th>Player 1</th> <th>Player 2</th> </tr> </thead> <tbody id="pairings-body"></tbody> </table> <p id="loading-message">Loading pairings...</p> <p id="no-search-results" style="display: none; text-align: center; margin-top: 15px; color: #6c757d;">No players found matching your search.</p> </div> <div id="standings-container" style="display: none; margin-top: 40px;"> <h2 id="standings-title">Swiss Standings</h2> <table id="standings-table" class="results-table"> <thead> <tr> <th>Rank</th> <th>Player</th> <th>Record</th> <th>OWP %</th> <th>OOWP %</th> </tr> </thead> <tbody id="standings-body"></tbody> </table> <p id="standings-loading-message" style="display: none; text-align: center; margin-top: 15px;">Calculating standings...</p> <p id="no-standings-message" style="display: none; text-align: center; margin-top: 15px;">Standings will be available after the final Swiss round concludes.</p> </div> </div> </main> <script src="../assets/script.js"></script> </body> </html>
           EOF
@@ -75,6 +76,8 @@ jobs:
 
       # Step 5: Update Root Index File (Homepage)
       - name: Update Root Index File (Homepage)
+        env: # Make DISPLAY_NAME accessible within python script
+           DISPLAY_NAME_VAR: ""
         run: |
           echo "Generating root index.html (Homepage)..."
           cat << EOF > index.html
@@ -89,8 +92,9 @@ jobs:
               if [ -z "$DISPLAY_NAME" ]; then DISPLAY_NAME=${FOLDER_NAME//-/ }; fi
 
               echo "Adding link for $FOLDER_NAME as '$DISPLAY_NAME'"
-              # >>>>> FIX: Perform HTML escaping *before* the cat command <<<<<
-              ESCAPED_DISPLAY_NAME=$(printf '%s' "$DISPLAY_NAME" | sed 's/&/\&/g; s/</\</g; s/>/\>/g; s/"/\"/g; s/'"'"'/\'/g')
+              # >>>>> FIX: Use Python for robust HTML escaping <<<<<
+              export DISPLAY_NAME_VAR="$DISPLAY_NAME" # Export for python
+              ESCAPED_DISPLAY_NAME=$(python -c "import html, os; print(html.escape(os.environ.get('DISPLAY_NAME_VAR', '')))")
 
               # Append button/card HTML to index.html, using the escaped variable
               cat << CARD_EOF >> index.html
@@ -113,12 +117,11 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add . # Stage all changes
           if ! git diff --staged --quiet; then
-            # Use output from step 4 safely
+            # Get original name safely from output variable
             ORIGINAL_NAME="${{ steps.process_file.outputs.tournament_name }}"
             COMMIT_MSG="Automated: Process TDF upload"
             # Safely include ORIGINAL_NAME in commit message, handling potential quotes
             COMMIT_MSG="$COMMIT_MSG for tournament $(echo "$ORIGINAL_NAME" | sed "s/'/\\\'/g")" # Basic escaping for single quotes
-            # Check if index.html was also modified
             if git diff --staged --quiet index.html; then : ; else COMMIT_MSG="$COMMIT_MSG, update homepage list"; fi
             git commit -m "$COMMIT_MSG"
             git push # Push the commit
