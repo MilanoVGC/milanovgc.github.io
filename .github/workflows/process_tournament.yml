@@ -55,7 +55,6 @@ jobs:
             TOURNAMENT_NAME=${BASENAME//_/ }
           fi
           echo "Original Tournament Name: $TOURNAMENT_NAME"
-          # Updated sanitization: more robust, handles edge cases better
           SANITIZED_NAME=$(echo "$TOURNAMENT_NAME" | iconv -t ascii//TRANSLIT | sed -E 's/[^a-zA-Z0-9]+/-/g' | sed -E 's/^-+|-+$//g' | tr '[:upper:]' '[:lower:]')
           if [ -z "$SANITIZED_NAME" ]; then SANITIZED_NAME="unnamed-tournament-$(date +%s)"; fi
           TOURNAMENT_FOLDER="$SANITIZED_NAME"
@@ -71,94 +70,39 @@ jobs:
           mv "$INPUT_FILE" "$TOURNAMENT_FOLDER/data/tournament_data.xml"
           if [ $? -ne 0 ]; then echo "ERROR: Failed to move TDF file!"; exit 1; fi
           echo "tournament_folder=$TOURNAMENT_FOLDER" >> $GITHUB_OUTPUT
-          echo "tournament_name=\"${TOURNAMENT_NAME}\"" >> $GITHUB_OUTPUT # Ensure name with spaces is quoted
+          # Ensure quotes around the name output for safety
+          echo "tournament_name=\"$(echo $TOURNAMENT_NAME | sed 's/"/\\"/g')\"" >> $GITHUB_OUTPUT
 
-      # Step 5: Update Root Index File (Homepage) - *** With Hero and Card Grid Structure ***
+      # Step 5: Update Root Index File (Homepage)
       - name: Update Root Index File (Homepage)
         run: |
           echo "Generating root index.html (Homepage)..."
-          # Start the HTML file with new structure
           cat << EOF > index.html
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>MilanoVGC - Tournament Results</title> <!-- Changed Title -->
-              <link rel="preconnect" href="https://fonts.googleapis.com">
-              <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-              <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet"> <!-- Added 800 weight -->
-              <link rel="stylesheet" href="./assets/style.css">
-          </head>
-          <body>
-              <header class="main-header"> <!-- Added class for potential specific styling -->
-                  <div class="container">
-                       <!-- Simple Title for Header -->
-                       <div class="logo">MilanoVGC</div>
-                       <!-- Basic Nav (can be expanded later) -->
-                       <nav>
-                           <!-- <a href="#">Link 1</a> <a href="#">Link 2</a> -->
-                       </nav>
-                  </div>
-              </header>
-
-              <!-- Hero Section -->
-              <section id="hero">
-                  <div class="container">
-                      <h1>Tournament Pairings & Standings</h1>
-                      <p>Access live pairings, results, and final standings for MilanoVGC events.</p>
-                      <!-- Optional: Add a primary button/link if needed -->
-                      <!-- <a href="#tournament-list" class="button button-primary">View Events</a> -->
-                  </div>
-              </section>
-
-              <!-- Tournament List Section -->
-              <section id="tournament-list">
-                  <div class="container">
-                      <h2>Select Tournament</h2>
-                      <div class="tournament-grid">
-                          <!-- Tournament links will be inserted here by the loop -->
+          <!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>MilanoVGC - Tournament Results</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet"> <link rel="stylesheet" href="./assets/style.css"> </head> <body> <header class="main-header"> <div class="container"> <div class="logo">MilanoVGC</div> <nav> </nav> </div> </header> <section id="hero"> <div class="container"> <h1>Tournament Pairings & Standings</h1> <p>Access live pairings, results, and final standings for MilanoVGC events.</p> </div> </section> <section id="tournament-list"> <div class="container"> <h2>Select Tournament</h2> <div class="tournament-grid">
           EOF
 
-          # Find tournament folders and generate button-like links
-          # Sort reverse alphabetically so newest might appear higher (adjust sort if needed)
+          # Find tournament folders and generate links
           find . -maxdepth 1 -mindepth 1 -type d ! -path './assets' ! -path './incoming' ! -path './.github' ! -path './.git' -print0 | sort -rz | while IFS= read -r -d $'\0' dir; do
               FOLDER_NAME=$(basename "$dir")
-              # Attempt to read the original name from the tournament's HTML title for better display
-              # Escape potential special characters in title before using in sed
-              ESCAPED_FOLDER_NAME=$(printf '%s\n' "$FOLDER_NAME" | sed 's:[][\/.^$*]:\\&:g') # Escape regex chars
-              # Use grep -m 1 in case title appears multiple times; Use default shell's capabilities
-              DISPLAY_NAME=$(grep -o -m 1 '<title>.* - Pairings & Standings</title>' "$ESCAPED_FOLDER_NAME/index.html" 2>/dev/null | sed -e 's/<title>//' -e 's/ - Pairings & Standings<\/title>//' )
-
-              # Fallback to folder name if grep fails or returns empty
-              if [ -z "$DISPLAY_NAME" ]; then
-                  DISPLAY_NAME=${FOLDER_NAME//-/ } # Simple replacement for display
-              fi
+              # Try to get display name from title, fallback to folder name
+              DISPLAY_NAME=$(grep -o -m 1 '<title>.* - Pairings & Standings</title>' "$FOLDER_NAME/index.html" 2>/dev/null | sed -e 's/<title>//' -e 's/ - Pairings & Standings<\/title>//' || echo "${FOLDER_NAME//-/ }")
+              if [ -z "$DISPLAY_NAME" ]; then DISPLAY_NAME=${FOLDER_NAME//-/ }; fi
 
               echo "Adding link for $FOLDER_NAME as '$DISPLAY_NAME'"
-              # Append button/card HTML to index.html
+              # >>>>> FIX: Perform HTML escaping *before* the cat command <<<<<
+              ESCAPED_DISPLAY_NAME=$(printf '%s' "$DISPLAY_NAME" | sed 's/&/\&/g; s/</\</g; s/>/\>/g; s/"/\"/g; s/'"'"'/\'/g')
+
+              # Append button/card HTML to index.html, using the escaped variable
               cat << CARD_EOF >> index.html
                           <a href="./$FOLDER_NAME/" class="tournament-card">
-                              $(printf '%s' "$DISPLAY_NAME" | sed 's/&/\&/g; s/</\</g; s/>/\>/g; s/"/\"/g; s/'"'"'/\'/g') <!-- HTML escape display name -->
+                              ${ESCAPED_DISPLAY_NAME}
                           </a>
           CARD_EOF
           done
 
           # Finish the HTML file
           cat << EOF >> index.html
-                      </div> <!-- closing tournament-grid -->
-                  </div> <!-- closing container -->
-              </section> <!-- closing tournament-list -->
-
-              <footer class="main-footer">
-                  <div class="container">
-                      <p>© $(date +%Y) MilanoVGC. All rights reserved.</p>
-                      <!-- Add more footer links if needed -->
-                  </div>
-              </footer>
-
-          </body>
-          </html>
+                      </div> </div> </section> <footer class="main-footer"> <div class="container"> <p>© $(date +%Y) MilanoVGC. All rights reserved.</p> </div> </footer> </body> </html>
           EOF
           echo "Generated root index.html (Homepage)"
 
@@ -167,14 +111,14 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          # REMOVED git pull --rebase
           git add . # Stage all changes
           if ! git diff --staged --quiet; then
-            # Get original name safely from output variable
+            # Use output from step 4 safely
             ORIGINAL_NAME="${{ steps.process_file.outputs.tournament_name }}"
             COMMIT_MSG="Automated: Process TDF upload"
-            if [ ! -z "$ORIGINAL_NAME" ]; then COMMIT_MSG="$COMMIT_MSG for '${ORIGINAL_NAME}'"; fi
-            # Add changes to root index as well if needed
+            # Safely include ORIGINAL_NAME in commit message, handling potential quotes
+            COMMIT_MSG="$COMMIT_MSG for tournament $(echo "$ORIGINAL_NAME" | sed "s/'/\\\'/g")" # Basic escaping for single quotes
+            # Check if index.html was also modified
             if git diff --staged --quiet index.html; then : ; else COMMIT_MSG="$COMMIT_MSG, update homepage list"; fi
             git commit -m "$COMMIT_MSG"
             git push # Push the commit
