@@ -8,130 +8,59 @@
     <link rel="stylesheet" href="./assets/style.css">
     <style>
         /* Additional styles specific to the upload page */
-        main .container { max-width: 800px; /* Limit width for form */ }
-
-        .form-group {
-            margin-bottom: 1.75rem; /* Slightly more space */
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 0.6rem;
-            font-weight: 600;
-            color: var(--text-dark);
-        }
+        main .container { max-width: 700px; /* Limit width for form */ }
+        h1.page-title { text-align: center; margin-bottom: 2.5rem; font-weight: 700; font-size: 1.6em; }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary); font-size: 0.9em; }
         .form-group input[type="text"],
         .form-group input[type="password"],
         .form-group input[type="file"] {
-            width: 100%;
-            padding: 12px 16px; /* Consistent padding */
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-            font-size: 1em; /* Use base font size */
-            background-color: #fdfdff; /* Slightly off-white input */
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: var(--border-radius); font-size: 1em; background-color: var(--bg-primary); transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
         }
-         .form-group input[type="file"] {
-             padding: 10px 16px; /* Adjust file input padding slightly */
-             background-color: var(--bg-light);
-             cursor: pointer;
-         }
+        .form-group input[type="file"] { padding: 8px 12px; background-color: var(--bg-secondary); cursor: pointer; }
         .form-group input[type="text"]:focus,
-        .form-group input[type="password"]:focus {
-            outline: none;
-            border-color: var(--gradient-start); /* Match theme focus */
-            box-shadow: 0 0 0 3px rgba(249, 119, 148, 0.15); /* Match theme focus */
-        }
-
-        .status-box {
-            margin-top: 2rem;
-            padding: 18px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-            background-color: #f8f9fa;
-            min-height: 120px;
-            white-space: pre-wrap;
-            font-family: Menlo, Monaco, Consolas, 'Courier New', monospace; /* Monospace for logs */
-            font-size: 0.9em;
-            line-height: 1.5;
-            color: #4a5568; /* Muted grey text */
-            overflow-wrap: break-word;
-        }
-        .status-box .error { color: #e53e3e; /* Red for errors */ font-weight: bold; }
-        .status-box .success { color: #38a169; /* Green for success */ font-weight: bold; }
-
-        .help-text {
-            font-size: 0.85em;
-            color: #718096; /* Muted grey */
-            margin-top: 8px;
-        }
-
-        /* Button styling to match theme */
-        #uploadButton {
-            padding: 12px 30px;
-            font-size: 1.05em;
-            font-weight: 600;
-            cursor: pointer;
-            background: linear-gradient(110deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
-            color: var(--accent-color);
-            border: none;
-            border-radius: var(--border-radius);
-            transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        #uploadButton:disabled {
-            background: #cbd5e0; /* Grey out disabled */
-            cursor: not-allowed;
-            opacity: 0.7;
-             box-shadow: none;
-        }
-        #uploadButton:hover:not(:disabled) {
-            opacity: 0.9;
-            transform: translateY(-1px);
-             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-        }
+        .form-group input[type="password"]:focus { outline: none; border-color: var(--accent-color); box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2); }
+        .status-box { margin-top: 2rem; padding: 16px; border: 1px solid var(--border-color); border-radius: var(--border-radius); background-color: var(--bg-secondary); min-height: 100px; white-space: pre-wrap; font-family: Menlo, Monaco, Consolas, 'Courier New', monospace; font-size: 0.85em; line-height: 1.5; color: var(--text-secondary); overflow-wrap: break-word; }
+        .status-box .error { color: #e53e3e; font-weight: bold; }
+        .status-box .success { color: #38a169; font-weight: bold; }
+        .help-text { font-size: 0.8em; color: var(--text-secondary); margin-top: 6px; }
+        /* Button styling */
+        #uploadButton { padding: 10px 24px; font-size: 1em; font-weight: 600; cursor: pointer; background-color: var(--accent-color); color: white; border: none; border-radius: var(--border-radius); transition: background-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease; box-shadow: var(--shadow-dp1); }
+        #uploadButton:disabled { background-color: #A0AEC0; cursor: not-allowed; box-shadow: none; }
+        #uploadButton:hover:not(:disabled) { background-color: var(--accent-hover); box-shadow: var(--shadow-dp2); }
     </style>
 </head>
 <body>
-    <!-- Using the same header style as the homepage -->
     <header class="main-header">
         <div class="container">
-             <div class="logo">MilanoVGC</div>
-             <nav>
-                <!-- Add Admin links if needed -->
-                <a href="./index.html">Tournament List</a>
-             </nav>
+             <div class="logo">MilanoVGC Admin</div>
+             <nav> <a href="./index.html">Tournament List</a> </nav>
         </div>
     </header>
-
     <main>
         <div class="container">
-            <h1 style="text-align: center; margin-bottom: 2.5rem; font-weight: 700;">Admin TDF Upload</h1>
+            <h1 class="page-title">TDF Upload</h1>
             <form id="uploadForm">
                 <div class="form-group">
                     <label for="githubToken">GitHub Personal Access Token (PAT)</label>
                     <input type="password" id="githubToken" required autocomplete="current-password">
-                    <p class="help-text">Requires a PAT with 'repo' scope. Token is sent via HTTPS directly from your browser. It is not stored long-term.</p>
+                    <p class="help-text">Requires 'repo' scope. Used via JS (HTTPS only).</p>
                 </div>
-
                 <div class="form-group">
                     <label for="tdfFile">Tournament Data File (.tdf)</label>
                     <input type="file" id="tdfFile" accept=".tdf" required>
                 </div>
-
                 <button type="submit" id="uploadButton" disabled>Upload & Process File</button>
             </form>
-
             <div id="status" class="status-box">Status logs will appear here...</div>
         </div>
     </main>
-
     <footer class="main-footer">
           <div class="container">
-              <p>© 2024 MilanoVGC. All rights reserved.</p>
+              <p>© <span id="current-year"></span> MilanoVGC. All rights reserved.</p>
           </div>
     </footer>
-
-    <!-- Link to the upload JavaScript -->
     <script src="./assets/upload.js"></script>
+    <script> document.getElementById('current-year').textContent = new Date().getFullYear(); </script>
 </body>
 </html>
