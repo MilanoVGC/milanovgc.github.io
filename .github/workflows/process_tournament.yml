@@ -101,6 +101,7 @@ jobs:
                   <div class="container">
                        <h1 id="tournament-name">${TOURNAMENT_NAME}</h1> <!-- Set tournament name directly -->
                        <p id="tournament-info"></p> <!-- Script updates city/country -->
+                       <p style="margin-top: 5px;"><a href="../index.html" style="color: #ffcb05; font-size: 0.9em;">← Back to Tournament List</a></p> <!-- Added Back Link -->
                        <!-- Update status span will be added here by JS -->
                   </div>
               </header>
@@ -193,6 +194,7 @@ jobs:
                   <div class="container">
                        <h1>Available Tournaments</h1>
                        <p>Select a tournament below to view pairings.</p>
+                       <p style="margin-top: 5px;"><a href="./admin_upload.html" style="color: #ffcb05; font-size: 0.9em;">Admin Upload Page</a></p> <!-- Added Upload Link -->
                   </div>
               </header>
               <main>
@@ -207,7 +209,7 @@ jobs:
           EOF
 
           # Find all tournament directories (excluding '.', 'assets', 'incoming', '.github', '.git')
-          # MODIFIED: Added ! -path './.git'
+          # Added ! -path './.git'
           find . -maxdepth 1 -mindepth 1 -type d ! -path './assets' ! -path './incoming' ! -path './.github' ! -path './.git' -print0 | while IFS= read -r -d $'\0' dir; do
               FOLDER_NAME=$(basename "$dir")
               # Use the folder name (sanitized) as link text - simpler than mapping back
