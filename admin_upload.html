@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Tournament File</title>
+    <!-- Link to your existing stylesheet -->
+    <link rel="stylesheet" href="./assets/style.css">
+    <style>
+        /* Add some specific styles for the upload page */
+        main .container { max-width: 800px; }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+        .form-group input[type="text"],
+        .form-group input[type="password"],
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+        .form-group input[type="file"] { padding: 8px 15px; }
+        .status-box {
+            margin-top: 1.5rem;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            min-height: 100px;
+            white-space: pre-wrap; /* Keep line breaks */
+            font-family: monospace;
+            font-size: 0.85em;
+        }
+        .status-box .error { color: #dc3545; font-weight: bold; }
+        .status-box .success { color: #198754; font-weight: bold; }
+        .help-text { font-size: 0.8em; color: #6c757d; margin-top: 5px; }
+        #uploadButton {
+            padding: 12px 25px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #4a7dce;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            transition: background-color 0.2s ease;
+        }
+        #uploadButton:disabled {
+            background-color: #adb5bd;
+            cursor: not-allowed;
+        }
+        #uploadButton:hover:not(:disabled) {
+            background-color: #3a5da8;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+             <h1>Admin: Upload Tournament File</h1>
+             <p>Upload a .tdf file to the 'incoming' folder.</p>
+             <p><a href="./index.html" style="color: #ffcb05;">← Back to Tournament List</a></p>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            <form id="uploadForm">
+                <div class="form-group">
+                    <label for="githubToken">GitHub Personal Access Token (PAT)</label>
+                    <input type="password" id="githubToken" required>
+                    <p class="help-text">Requires a PAT with 'repo' scope. Token is used directly in your browser via JavaScript to talk to the GitHub API. Ensure you are on HTTPS.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="tdfFile">Tournament Data File (.tdf)</label>
+                    <input type="file" id="tdfFile" accept=".tdf" required>
+                </div>
+
+                <button type="submit" id="uploadButton" disabled>Upload File</button>
+            </form>
+
+            <div id="status" class="status-box">Enter PAT and select a .tdf file...</div>
+        </div>
+    </main>
+
+    <!-- Link to the new JavaScript file -->
+    <script src="./assets/upload.js"></script>
+</body>
+</html>
