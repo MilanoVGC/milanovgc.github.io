@@ -1,18 +1,35 @@
 // Wait for the HTML document to be fully loaded before running script
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM fully loaded and parsed");
-    console.log("--- Initializing Pairing/Standings Script (v4.14.2 - Fixed Syntax Error) ---");
+    console.log("--- Initializing Pairing/Standings Script (v4.14.1 - Fixed Syntax Error) ---");
 
     // --- DOM Element References ---
-    const appContainer = document.getElementById('app'); // Get app container ref once
-    // References inside views will be obtained dynamically
+    const tournamentNameElement = document.getElementById('tournament-name');
+    const tournamentInfoElement = document.getElementById('tournament-info');
+    const roundTabsContainer = document.getElementById('round-tabs');
+    const pairingsTableBody = document.getElementById('pairings-body');
+    const pairingsTable = document.getElementById('pairings-table');
+    const searchInput = document.getElementById('search-input');
+    const clearSearchBtn = document.getElementById('clear-search-btn');
+    const currentRoundTitle = document.getElementById('current-round-title');
+    const loadingMessage = document.getElementById('loading-message');
+    const standingsContainer = document.getElementById('standings-container');
+    const standingsTableBody = document.getElementById('standings-body');
+    const standingsLoadingMsg = document.getElementById('standings-loading-message');
+    const noStandingsMsg = document.getElementById('no-standings-message');
+    const headerContainer = document.querySelector('header .container');
+    const updateStatusElement = document.createElement('span');
+    updateStatusElement.id = 'update-status';
+    if (headerContainer) headerContainer.appendChild(updateStatusElement);
+    else document.querySelector('header')?.appendChild(updateStatusElement);
 
     // Guard: Check essential elements
-     if (!appContainer) {
-          console.error("CRITICAL ERROR: Missing #app container. Stopping script.");
+     if (!appContainer || !loadingMessage) { // Check only essential core elements initially
+          console.error("CRITICAL ERROR: Missing #app container or initial loading message. Stopping script.");
+          // Can't reliably show error if container is missing
           return;
      }
-     console.log("Essential DOM elements (#app) found.");
+     console.log("Essential DOM elements (#app, initial loading message) found.");
 
     // --- Global Data Storage ---
     let playersData = {}; let roundsData = []; let currentRound = 1; let lastKnownTimeElapsed = -1; let updateIntervalId = null; let standingsCache = {};
@@ -22,12 +39,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const refreshInterval = 15000;
     const WP_MINIMUM = 0.25;
     const CURRENT_YEAR = new Date().getFullYear();
-    const DEBUG_STANDINGS = false;
+    const DEBUG_STANDINGS = false; // Keep calculation logs off
 
     // --- Core Data Loading and Parsing ---
-    async function loadTournamentData(slug) {
+    async function loadTournamentData(slug) { // Pass slug to construct path
         const xmlPath = `${slug}/data/tournament_data.xml`;
-        const statusEl = document.getElementById('update-status'); // Get dynamically if exists
+        const statusEl = document.getElementById('update-status'); // Get dynamically
         // console.log(`loadTournamentData: Starting fetch for ${xmlPath}...`);
         try {
             const response = await fetch(`${xmlPath}?t=${new Date().getTime()}`);
@@ -37,10 +54,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // console.log("loadTournamentData: XML parsed.");
             const currentTimeElapsedElement = xmlDoc.querySelector('tournament > timeelapsed'); const currentTimeElapsed = currentTimeElapsedElement ? parseInt(currentTimeElapsedElement.textContent, 10) : -1; if (currentTimeElapsed !== -1 && currentTimeElapsed === lastKnownTimeElapsed) { /* console.log("loadTournamentData: No change."); */ if(statusEl) statusEl.textContent = `Up to date`; return false; }
             console.log("loadTournamentData: Change detected. Processing...");
-            extractTournamentDataFromXML(xmlDoc);
+            extractTournamentDataFromXML(xmlDoc); // Use the specific extraction function
             lastKnownTimeElapsed = currentTimeElapsed;
             console.log("loadTournamentData: Data extraction complete.");
-            if(statusEl) statusEl.textContent = 'Processing...';
+            if(statusEl) statusEl.textContent = 'Processing...'; // Indicate processing after load
             return true;
         } catch (error) { console.error("loadTournamentData: Error:", error); if(statusEl) statusEl.textContent = `Fetch Error`; return false; }
     }
@@ -66,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- Standings Calculation Logic ---
+    // --- Standings Calculation Logic (Using v4.10/v4.11 Logic - No Intermediate Rounding) ---
     function calculatePlayerSwissRecord(playerId, maxRoundNumber) {
          let matchWins = 0, losses = 0, ties = 0, byes = 0, matchPoints = 0, roundsParticipated = 0, highestRoundParticipated = 0; const pid=String(playerId); if(!pid) return {matchWins,losses,ties,byes,matchPoints,roundsParticipated,highestRoundParticipated};
          for(const rnd of roundsData){ if(rnd.type!=="3"||rnd.roundNumber>maxRoundNumber) continue; let played=false; for(const m of rnd.matches){ let found=false; const p1=String(m.player1Id), p2=String(m.player2Id); if(m.isBye&&p1===pid){ byes++; matchPoints+=3; found=true; } else if(p1===pid){ if(m.outcome===1){ matchWins++; matchPoints+=3; } else if(m.outcome===2){ losses++; matchPoints+=0; } else if(m.outcome===3||m.outcome===4){ ties++; matchPoints+=1; } else{ matchPoints+=0; } found=true; } else if(p2===pid){ if(m.outcome===1){ losses++; matchPoints+=0; } else if(m.outcome===2){ matchWins++; matchPoints+=3; } else if(m.outcome===3||m.outcome===4){ ties++; matchPoints+=1; } else{ matchPoints+=0; } found=true; } if(found){ played=true; break; } } if(played){ roundsParticipated++; highestRoundParticipated=rnd.roundNumber; } }
@@ -119,8 +136,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (DEBUG_STANDINGS) console.log(`--- Standings Calculation Complete ---`);
         return standingsData;
     }
+    // >>>>> FIXED: Corrected sortStandings function definition <<<<<
     function sortStandings(standingsData) {
-        // >>>>> CORRECTED FUNCTION BODY <<<<<
         return standingsData.sort((a, b) => {
             if (b.matchPoints !== a.matchPoints) return b.matchPoints - a.matchPoints;
             const owpDiff = b.owp - a.owp; if (Math.abs(owpDiff) > 1e-9) return owpDiff;
@@ -135,30 +152,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // console.log("displayStandings: Starting display...");
         if (!standingsTableBody) { console.error("displayStandings: Missing table body!"); return; }
         standingsTableBody.innerHTML = ''; if (!Array.isArray(sortedStandings) || sortedStandings.length === 0) { if (standingsContainer) standingsContainer.style.display = 'block'; if(noStandingsMsg) noStandingsMsg.style.display = 'block'; return; }
-        if(noStandingsMsg) noStandingsMsg.style.display = 'none'; if (standingsContainer) standingsContainer.style.display = 'block';
-        sortedStandings.forEach((data, index) => {
-            try {
-                const rank = index + 1;
-                const row = standingsTableBody.insertRow();
-                const cellRank = row.insertCell(); cellRank.textContent = rank; cellRank.style.textAlign = 'center';
-                const cellName = row.insertCell(); cellName.textContent = data.playerInfo?.name || 'Unknown';
-                const cellRecord = row.insertCell(); cellRecord.textContent = data.recordString; cellRecord.style.textAlign = 'center';
-                const cellOWP = row.insertCell(); cellOWP.textContent = (data.owp * 100).toFixed(2); cellOWP.style.textAlign = 'right';
-                const cellOOWP = row.insertCell(); cellOOWP.textContent = (data.oowp * 100).toFixed(2); cellOOWP.style.textAlign = 'right';
-            // >>>>> FIXED: Correctly close the try block before catch <<<<<
-            } catch (error) {
-                console.error(`Error displaying standings row ${index + 1}:`, error);
-            }
-        }); // <<< Correctly close forEach here
-        // console.log("displayStandings: Display finished."); // <<< Correctly close function here
+        if(noStandingsMsg) noStandingsMsg.style.display = 'none'; if (standingsContainer) standingsContainer.style.display = 'block'; sortedStandings.forEach((data, index) => { try { const rank = index + 1; const row = standingsTableBody.insertRow(); const cellRank = row.insertCell(); cellRank.textContent = rank; cellRank.style.textAlign = 'center'; const cellName = row.insertCell(); cellName.textContent = data.playerInfo?.name || 'Unknown'; const cellRecord = row.insertCell(); cellRecord.textContent = data.recordString; cellRecord.style.textAlign = 'center'; const cellOWP = row.insertCell(); cellOWP.textContent = (data.owp * 100).toFixed(2); cellOWP.style.textAlign = 'right'; const cellOOWP = row.insertCell(); cellOOWP.textContent = (data.oowp * 100).toFixed(2); cellOOWP.style.textAlign = 'right'; } catch (error) { console.error(`Error displaying standings row ${index + 1}:`, error); } });
+        // console.log("displayStandings: Display finished.");
     }
-
 
     // --- UI Update Functions (For Tournament View) ---
     function updateTournamentUI() {
         // console.log("updateTournamentUI: Starting...");
         if (Object.keys(playersData).length === 0 || roundsData.length === 0) { console.log("updateTournamentUI: No data to display."); return; }
-        generateTabs(); displayRound(currentRound); updateActiveTab(); updateStandingsDisplay();
+        generateTabs();
+        displayRound(currentRound);
+        updateActiveTab();
+        updateStandingsDisplay();
         const pairingLoading = document.getElementById('loading-message'); if(pairingLoading) pairingLoading.style.display = 'none';
         // console.log("updateTournamentUI: Finished.");
     }
@@ -170,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (stages["Swiss"]) { stages["Swiss"].sort((a, b) => a - b).forEach(roundNum => { const button = document.createElement('button'); button.textContent = `Round ${roundNum}`; button.dataset.roundNumber = roundNum; button.addEventListener('click', handleTabClick); roundTabsContainer.appendChild(button); }); }
         const stageOrder = ["Top 16", "Top 8", "Top 4", "Finals", "Top Cut"];
         stageOrder.forEach(stageLabel => { if (stages[stageLabel]) { const roundsInStage = stages[stageLabel].sort((a, b) => a - b); const startRoundOfStage = roundsInStage[0]; const button = document.createElement('button'); button.textContent = stageLabel; button.dataset.roundNumber = startRoundOfStage; button.dataset.stageRounds = roundsInStage.join(','); button.addEventListener('click', handleTabClick); roundTabsContainer.appendChild(button); } });
-        // console.log("Generated tabs.");
+        console.log("Generated tabs.");
     }
 
     function updateStandingsDisplay() {
@@ -178,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const swissRounds = roundsData.filter(r => r.type === "3"); const totalSwissRounds = swissRounds.length > 0 ? Math.max(...swissRounds.map(r => r.roundNumber)) : 0; let latestCompletedSwissRoundNumber = 0; for (const round of swissRounds) { const isCompleted = !round.matches.some(m => m.outcome === 0 && !m.isBye); if (isCompleted && round.roundNumber > latestCompletedSwissRoundNumber) { latestCompletedSwissRoundNumber = round.roundNumber; } }
             if (totalSwissRounds > 0 && latestCompletedSwissRoundNumber === totalSwissRounds) {
-                standingsLoadingMsg.style.display = 'block'; noStandingsMsg.style.display = 'none'; standingsTableBody.innerHTML = '';
+                standingsLoadingMsg.style.display = 'block'; noStandingsMsg.style.display = 'none'; standingsTableBody.innerHTML = ''; // Clear previous potentially
                 setTimeout(() => {
                     try { console.log(`Calculating final standings (R${latestCompletedSwissRoundNumber}).`); const standingsData = calculateSwissStandingsForRound(latestCompletedSwissRoundNumber); const sortedStandings = sortStandings(standingsData); displayStandings(sortedStandings); standingsLoadingMsg.style.display = 'none'; }
                     catch (calcError) { console.error("Error during standings calculation/display:", calcError); standingsLoadingMsg.style.display = 'none'; noStandingsMsg.textContent = "Error calculating standings."; noStandingsMsg.style.display = 'block'; standingsContainer.style.display = 'block'; }
@@ -219,89 +224,19 @@ document.addEventListener('DOMContentLoaded', () => {
     function escapeHtml(unsafe) { if (!unsafe) return ''; return unsafe.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, """).replace(/'/g, "'"); }
 
     // --- Routing and Initialization ---
+    const appContainer = document.getElementById('app'); // Get app container ref once
     function showListView() { renderListView(); }
     function showTournamentView(slug) { renderTournamentView(slug); }
 
     function handleRouteChange() {
         const hash = window.location.hash.substring(1); console.log("Route changed:", hash);
-        // Clear previous interval timer if navigating away from a tournament
-        if(updateIntervalId) { clearInterval(updateIntervalId); updateIntervalId = null; console.log("Cleared existing update interval."); }
-        lastKnownTimeElapsed = -1; // Reset timeelapsed check for new view
-
         if (hash && hash.startsWith('tournament/')) { const slug = hash.substring('tournament/'.length); if (slug) { showTournamentView(slug); } else { showListView(); } }
         else { showListView(); }
-    }
-
-    // Render the list of tournaments
-    async function renderListView() {
-        console.log("Rendering List View"); if (!appContainer) return; currentView = 'list'; currentTournamentSlug = null;
-        appContainer.innerHTML = `<div class="container"><section id="tournament-list"><h2>Select Tournament</h2><div class="tournament-grid" id="tournament-grid-container"><p class="loading-list">Loading tournaments...</p></div></section></div>`;
-        try { if (tournamentsData.length === 0) { console.log("Fetching tournaments.json..."); const response = await fetch('data/tournaments.json?t=' + new Date().getTime()); if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); tournamentsData = await response.json(); console.log(`Loaded ${tournamentsData.length} tournaments.`); } const gridContainer = document.getElementById('tournament-grid-container'); if (tournamentsData.length > 0) { gridContainer.innerHTML = tournamentsData.map(t => `<a href="#tournament/${t.slug}" class="tournament-card">${escapeHtml(t.name)}<span class="tournament-date">${t.date || ''}</span></a>`).join(''); } else { gridContainer.innerHTML = '<p>No tournaments found.</p>'; } } catch (error) { console.error("Error loading/rendering list:", error); const gridContainer = document.getElementById('tournament-grid-container'); if (gridContainer) gridContainer.innerHTML = '<p class="error">Could not load tournament list.</p>'; }
-    }
-
-    // Render the view for a specific tournament
-    async function renderTournamentView(slug) {
-        console.log("Rendering Tournament View for:", slug); if (!appContainer) return; currentView = 'tournament'; currentTournamentSlug = slug; playersData = {}; roundsData = []; currentRound = 1;
-        appContainer.innerHTML = `
-            <div class="container tournament-view-container">
-                 <div id="tournament-header-info" style="margin-bottom: 20px;"> <!-- Add margin -->
-                    <h1 id="tournament-name">Loading...</h1>
-                    <p id="tournament-info"></p>
-                    <p><a href="#" style="font-size: 0.9em;">← Back to Tournament List</a></p>
-                    <span id="update-status"></span>
-                 </div>
-                 <div class="controls"> <nav id="round-tabs"></nav> <div class="search-container"> <input type="text" id="search-input" placeholder="Search by Player Name..."> <button type="button" id="clear-search-btn" class="clear-search-button" title="Clear search">×</button> </div> </div>
-                 <div id="pairings-container"> <h2 id="current-round-title"></h2> <table id="pairings-table" class="results-table"> <thead> <tr> <th>Table</th> <th>Player 1</th> <th>Player 2</th> </tr> </thead> <tbody id="pairings-body"></tbody> </table> <p id="loading-message">Loading pairings...</p> <p id="no-search-results" style="display: none;">No players found matching.</p> </div>
-                 <div id="standings-container" style="display: none; margin-top: 40px;"> <h2 id="standings-title">Swiss Standings</h2> <table id="standings-table" class="results-table"> <thead> <tr> <th>Rank</th> <th>Player</th> <th>Record</th> <th>OWP %</th> <th>OOWP %</th> </tr> </thead> <tbody id="standings-body"></tbody> </table> <p id="standings-loading-message" style="display: none;">Calculating standings...</p> <p id="no-standings-message" style="display: none;">Standings pending.</p> </div>
-            </div>`;
-        appContainer.querySelector('a[href="#"]').addEventListener('click', (e) => { e.preventDefault(); window.location.hash = ''; });
-        await loadAndDisplayTournamentData(slug); // Initial load
-        // Start auto-update timer ONLY for tournament view
-        if (updateIntervalId) clearInterval(updateIntervalId);
-        updateIntervalId = setInterval(() => checkForTournamentUpdate(slug), refreshInterval); // Pass slug to checker
-        console.log(`Started update interval for ${slug}`);
-    }
-
-    // Fetch and display data for a specific tournament
-    async function loadAndDisplayTournamentData(slug) {
-        const didLoad = await loadTournamentData(slug); // Fetches and extracts
-        if (didLoad) {
-             // Update header info
-            const headerInfo = document.getElementById('tournament-header-info');
-            if(headerInfo) {
-                const nameEl = headerInfo.querySelector('#tournament-name');
-                const infoEl = headerInfo.querySelector('#tournament-info');
-                // Find name/info from playersData/roundsData if needed, or use slug as fallback
-                 const tournamentNameFromData = Object.values(playersData).length > 0 ? `Tournament ${slug}` : "Loading..."; // Placeholder - Ideally get name from manifest or XML <data> tag during extraction if needed again
-                 const tournamentLocationFromData = ""; // Placeholder - Same as above
-                if (nameEl) nameEl.textContent = tournamentNameFromData;
-                if (infoEl) infoEl.textContent = tournamentLocationFromData;
-                const statusEl = headerInfo.querySelector('#update-status');
-                if(statusEl) statusEl.textContent = 'Loaded';
-            }
-            updateTournamentUI(); // Populate tabs, pairings, standings
-            setupTournamentEventListeners(); // Add search listeners etc.
-        } else {
-             // Handle case where data didn't load but view is shown (maybe initial load failed)
-             const pairingLoading = document.getElementById('loading-message');
-             if(pairingLoading) pairingLoading.textContent = 'Could not load tournament data.';
-        }
-    }
-
-    // Auto-update check function specifically for tournament view
-    async function checkForTournamentUpdate(slug) {
-        // console.log(`Checking for updates for ${slug}...`);
-        const newDataProcessed = await loadTournamentData(slug); // Re-fetches and re-extracts if changed
-        if (newDataProcessed) {
-            console.log("checkForTournamentUpdate: New data processed, updating UI.");
-            updateTournamentUI(); // Re-render tabs, pairings, standings
-            // Event listeners should persist unless elements are completely replaced
-        }
     }
 
     window.addEventListener('hashchange', handleRouteChange);
 
     // Initial load
-    handleRouteChange(); // Render view based on initial URL hash
+    handleRouteChange();
 
 }); // End of DOMContentLoaded
