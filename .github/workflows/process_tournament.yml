@@ -206,9 +206,9 @@ jobs:
                           <tbody>
           EOF
 
-          # Find all tournament directories (excluding '.', 'assets', 'incoming', '.github')
-          # This command ALREADY excludes .github, so no change needed here.
-          find . -maxdepth 1 -mindepth 1 -type d ! -path './assets' ! -path './incoming' ! -path './.github' -print0 | while IFS= read -r -d $'\0' dir; do
+          # Find all tournament directories (excluding '.', 'assets', 'incoming', '.github', '.git')
+          # MODIFIED: Added ! -path './.git'
+          find . -maxdepth 1 -mindepth 1 -type d ! -path './assets' ! -path './incoming' ! -path './.github' ! -path './.git' -print0 | while IFS= read -r -d $'\0' dir; do
               FOLDER_NAME=$(basename "$dir")
               # Use the folder name (sanitized) as link text - simpler than mapping back
               # Add a row to the table for each tournament folder found
