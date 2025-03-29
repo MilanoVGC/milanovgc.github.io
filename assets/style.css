@@ -1,97 +1,409 @@
 /* --- Global Resets & Base --- */
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body { font-family: 'Poppins', sans-serif; line-height: 1.6; background-color: #f8f9fa; color: #343a40; display: flex; flex-direction: column; min-height: 100vh; }
-.container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    line-height: 1.6;
+    /* Slightly lighter page background */
+    background-color: #fdfdff;
+    color: #343a40;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.container {
+    width: 100%;
+    max-width: 1200px; /* Keep max-width */
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+a {
+   color: #3a5da8; /* Consistent link color */
+   text-decoration: none;
+   transition: color 0.2s ease;
+}
+
+a:hover {
+    color: #2a437a;
+    text-decoration: underline;
+}
 
 /* --- Header --- */
-header { background: linear-gradient(135deg, #4a7dce 0%, #3a5da8 100%); color: #ffffff; padding: 2rem 0; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); position: relative; }
-header h1 { font-weight: 700; font-size: 2.2em; margin-bottom: 5px; color: #ffcb05; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); }
-header p { font-size: 1em; color: #e0e8ff; margin-bottom: 10px; }
-#update-status { position: absolute; bottom: 8px; right: 20px; font-size: 0.75em; color: #bac8ff; background-color: rgba(0, 0, 0, 0.1); padding: 2px 6px; border-radius: 4px; }
+header {
+    /* Slightly softer gradient */
+    background: linear-gradient(135deg, #4e85d6 0%, #3f68b8 100%);
+    color: #ffffff;
+    padding: 1.8rem 0; /* Slightly adjusted padding */
+    margin-bottom: 35px; /* More space below header */
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
+    position: relative;
+    border-bottom: 3px solid #ffcb05; /* Accent border */
+}
+
+header h1 {
+    font-weight: 700;
+    font-size: 2.4em; /* Slightly larger */
+    margin-bottom: 8px;
+    color: #ffcb05; /* Keep yellow accent */
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+header p {
+    font-size: 1.05em; /* Slightly larger */
+    color: #e0e8ff;
+    margin-bottom: 12px;
+}
+
+header .container > p a { /* Specificity for links in header paragraph */
+    color: #ffdd57; /* Lighter yellow for links */
+    font-weight: 600;
+    font-size: 0.9em;
+}
+header .container > p a:hover {
+     color: #ffffff;
+}
+
+
+#update-status {
+    position: absolute;
+    bottom: 10px; /* Adjusted position */
+    right: 25px;
+    font-size: 0.8em; /* Slightly larger */
+    color: #bac8ff;
+    background-color: rgba(0, 0, 0, 0.15); /* Darker contrast */
+    padding: 3px 8px;
+    border-radius: 5px;
+}
 
 /* --- Main Content Area --- */
-main { flex-grow: 1; padding-bottom: 40px; }
-main .container { background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07); }
+main {
+    flex-grow: 1;
+    padding-bottom: 50px;
+}
+
+main .container {
+    background: #ffffff;
+    padding: 35px; /* Increased padding */
+    border-radius: 10px; /* Slightly softer radius */
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08); /* Softer shadow */
+}
 
 /* --- Controls (Tabs & Search - For Tournament View) --- */
-.controls { margin-bottom: 30px; display: flex; flex-wrap: wrap; gap: 15px 20px; align-items: center; padding-bottom: 20px; border-bottom: 1px solid #dee2e6; }
-#round-tabs { display: flex; gap: 10px; flex-grow: 1; flex-wrap: wrap; }
-#round-tabs button { padding: 10px 18px; cursor: pointer; border: 1px solid #ced4da; background-color: #ffffff; color: #495057; border-radius: 8px; font-weight: 600; font-size: 0.9em; transition: all 0.2s ease; }
-#round-tabs button.active { background-color: #4a7dce; color: #ffffff; border-color: #4a7dce; box-shadow: 0 2px 5px rgba(74, 125, 206, 0.3); }
-#round-tabs button:hover:not(.active) { background-color: #f1f3f5; border-color: #adb5bd; color: #343a40; }
+.controls {
+    margin-bottom: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px; /* Increased gap */
+    align-items: center;
+    padding-bottom: 25px; /* Increased spacing */
+    border-bottom: 1px solid #e9ecef; /* Lighter border */
+}
+
+#round-tabs {
+    display: flex;
+    gap: 12px; /* Slightly more gap */
+    flex-grow: 1;
+    flex-wrap: wrap;
+}
+
+#round-tabs button {
+    padding: 10px 20px; /* More horizontal padding */
+    cursor: pointer;
+    border: 1px solid #d1d9e1; /* Lighter border */
+    background-color: #f8f9fa; /* Light background */
+    color: #495057;
+    border-radius: 6px; /* Consistent radius */
+    font-weight: 600;
+    font-size: 0.95em; /* Slightly larger */
+    transition: all 0.25s ease-in-out;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+#round-tabs button.active {
+    background-color: #3f68b8; /* Match header gradient */
+    color: #ffffff;
+    border-color: #3f68b8;
+    box-shadow: 0 3px 7px rgba(63, 104, 184, 0.3);
+    transform: translateY(-1px); /* Subtle lift */
+}
+
+#round-tabs button:hover:not(.active) {
+    background-color: #e9ecef; /* Slightly darker hover */
+    border-color: #b8c5d3;
+    color: #343a40;
+     box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+     transform: translateY(-1px);
+}
 
 /* Search Container */
-.search-container { position: relative; display: flex; align-items: center; min-width: 250px; }
-#search-input { flex-grow: 1; padding: 10px 35px 10px 15px; border: 1px solid #ced4da; border-radius: 8px; font-size: 0.9em; transition: border-color 0.2s ease, box-shadow 0.2s ease; width: 100%; }
-#clear-search-btn { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); display: none; background: none; border: none; color: #6c757d; cursor: pointer; font-size: 1.5em; line-height: 1; padding: 0 5px; font-weight: bold; opacity: 0.7; transition: opacity 0.2s ease; }
-#clear-search-btn:hover { color: #343a40; opacity: 1; }
-#search-input:focus { outline: none; border-color: #4a7dce; box-shadow: 0 0 0 3px rgba(74, 125, 206, 0.15); }
+.search-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 280px; /* Slightly wider */
+    flex-basis: 300px; /* Allow shrinking but prefer width */
+}
 
-/* --- Pairings Table Area (Tournament View) --- */
-#pairings-container { margin-top: 20px; }
-#current-round-title { font-size: 1.6em; font-weight: 700; color: #3a5da8; margin-bottom: 20px; }
-#pairings-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95em; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; }
-#pairings-table th, #pairings-table td { border: none; border-bottom: 1px solid #dee2e6; padding: 14px 18px; text-align: left; vertical-align: middle; }
-#pairings-table tbody tr:last-child td { border-bottom: none; }
-#pairings-table th { background-color: #f1f3f5; font-weight: 600; color: #495057; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.75px; }
-#pairings-table th:nth-child(1), #pairings-table td:nth-child(1) { width: 80px; text-align: center; font-weight: 600; color: #6c757d; }
-#pairings-table th:nth-child(2), #pairings-table td:nth-child(2) { width: 45%; }
-#pairings-table th:nth-child(3), #pairings-table td:nth-child(3) { width: 45%; }
-#pairings-table tbody tr:hover { background-color: #f8f9fa; }
-span.winner { font-weight: 700; color: #198754; position: relative; }
-span.winner::before { content: '🏆'; display: inline-block; margin-right: 8px; vertical-align: baseline; color: #ffc107; font-size: 1em; opacity: 0.85; }
-#pairings-table td:last-child:contains('BYE') { color: #6c757d; } /* Keep BYE grey */
-#loading-message { font-style: italic; color: #6c757d; text-align: center; padding: 40px 20px; font-size: 1.1em; background-color: #f8f9fa; border-radius: 8px; margin-top: 20px; }
+#search-input {
+    flex-grow: 1;
+    padding: 11px 40px 11px 16px; /* Adjusted padding */
+    border: 1px solid #d1d9e1;
+    border-radius: 6px;
+    font-size: 0.95em;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    width: 100%;
+}
+
+#clear-search-btn {
+    position: absolute;
+    right: 6px; /* Adjusted position */
+    top: 50%;
+    transform: translateY(-50%);
+    display: none; /* Controlled by JS */
+    background: none;
+    border: none;
+    color: #8894a1; /* Muted color */
+    cursor: pointer;
+    font-size: 1.6em; /* Larger X */
+    line-height: 1;
+    padding: 0 8px; /* Click area */
+    font-weight: bold;
+    opacity: 0.6;
+    transition: opacity 0.2s ease, color 0.2s ease;
+}
+#clear-search-btn:hover {
+    color: #343a40;
+    opacity: 1;
+}
+#search-input:focus {
+    outline: none;
+    border-color: #4e85d6; /* Match header */
+    box-shadow: 0 0 0 3px rgba(78, 133, 214, 0.15);
+}
+
+/* --- Pairings Table Area --- */
+#pairings-container {
+    margin-top: 25px;
+}
+
+#current-round-title {
+    font-size: 1.8em; /* Larger title */
+    font-weight: 700;
+    color: #3a5da8;
+    margin-bottom: 25px; /* More space */
+}
+
+/* General Table Styling */
+.results-table { /* Add this class to both pairings and standings tables in HTML */
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 0.98em; /* Base font size */
+    border: 1px solid #e9ecef; /* Light outer border */
+    border-radius: 8px; /* Rounded corners */
+    overflow: hidden; /* Clip children to rounded corners */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.results-table th,
+.results-table td {
+    border: none; /* Remove internal borders */
+    border-bottom: 1px solid #e9ecef; /* Use horizontal lines only */
+    padding: 15px 20px; /* Increased padding */
+    text-align: left;
+    vertical-align: middle;
+}
+
+.results-table tbody tr:last-child td {
+    border-bottom: none; /* No border on last row */
+}
+
+/* Zebra Striping */
+.results-table tbody tr:nth-child(odd) {
+    background-color: #f8f9fa; /* Light grey for odd rows */
+}
+
+.results-table tbody tr:hover {
+    background-color: #eef4fc; /* Subtle blue hover */
+}
+
+/* Table Headers */
+.results-table th {
+    background-color: #f1f3f5; /* Slightly darker header */
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.88em;
+    text-transform: uppercase;
+    letter-spacing: 0.8px; /* Increased spacing */
+}
+
+/* Pairings Specific Column Styles */
+#pairings-table th:nth-child(1),
+#pairings-table td:nth-child(1) { width: 8%; text-align: center; font-weight: 600; color: #6c757d; } /* Table No. */
+#pairings-table th:nth-child(2),
+#pairings-table td:nth-child(2) { width: 46%; } /* Player 1 */
+#pairings-table th:nth-child(3),
+#pairings-table td:nth-child(3) { width: 46%; } /* Player 2 */
+
+/* Winner Highlighting */
+span.winner {
+    font-weight: 700;
+    color: #198754; /* Keep green winner color */
+    position: relative;
+    padding-left: 26px; /* Space for icon */
+}
+span.winner::before {
+    content: '🏆';
+    position: absolute; /* Position icon */
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-block;
+    vertical-align: middle; /* Align icon better */
+    color: #ffc107; /* Keep trophy gold */
+    font-size: 1.1em; /* Slightly larger icon */
+    opacity: 0.9;
+}
+
+#pairings-table td:last-child:contains('BYE') { /* Style BYE consistently */
+    color: #6c757d;
+    font-style: italic;
+}
+
+#loading-message,
+#standings-loading-message,
+#no-standings-message,
+#no-search-results { /* Consolidate message styles */
+    font-style: italic;
+    color: #6c757d;
+    text-align: center;
+    padding: 40px 20px;
+    font-size: 1.1em;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    margin-top: 20px;
+    border: 1px dashed #d1d9e1; /* Subtle dashed border */
+}
+#no-search-results { display: none; } /* Hide initially */
+
 .hidden-row { display: none; }
 
 /* --- Standings Table Styles --- */
-#standings-container { margin-top: 40px; } /* Add space above standings */
-#standings-title { font-size: 1.6em; font-weight: 700; color: #3a5da8; margin-bottom: 20px; }
-#standings-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95em; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; }
-#standings-table th, #standings-table td { border: none; border-bottom: 1px solid #dee2e6; padding: 12px 15px; /* Slightly less padding than pairings */ text-align: left; vertical-align: middle; }
-#standings-table tbody tr:last-child td { border-bottom: none; }
-#standings-table th { background-color: #f1f3f5; font-weight: 600; color: #495057; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.75px; }
+#standings-container {
+    margin-top: 50px; /* More separation */
+}
+
+#standings-title {
+    font-size: 1.8em;
+    font-weight: 700;
+    color: #3a5da8;
+    margin-bottom: 25px;
+}
+
+/* Use the general .results-table styles */
+#standings-table {
+    /* Inherits base styles from .results-table */
+}
+
+/* Standings Header - slightly different background */
+#standings-table th {
+    background-color: #e9ecef; /* Slightly different shade */
+}
+
 /* Column Widths & Alignment for Standings */
-#standings-table th:nth-child(1), #standings-table td:nth-child(1) { width: 10%; text-align: center; } /* Rank */
-#standings-table th:nth-child(2), #standings-table td:nth-child(2) { width: 40%; } /* Player Name */
+#standings-table th:nth-child(1), #standings-table td:nth-child(1) { width: 8%; text-align: center; } /* Rank */
+#standings-table th:nth-child(2), #standings-table td:nth-child(2) { width: 42%; } /* Player Name - more space */
 #standings-table th:nth-child(3), #standings-table td:nth-child(3) { width: 15%; text-align: center; } /* Record */
 #standings-table th:nth-child(4), #standings-table td:nth-child(4) { width: 17.5%; text-align: right; } /* OWP % */
 #standings-table th:nth-child(5), #standings-table td:nth-child(5) { width: 17.5%; text-align: right; } /* OOWP % */
-#standings-table tbody tr:hover { background-color: #f8f9fa; }
-
 
 /* --- Tournament List Table Styles (Root Index Page) --- */
-.tournament-list-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 1em; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; }
-.tournament-list-table th, .tournament-list-table td { border: none; border-bottom: 1px solid #e9ecef; padding: 16px 20px; text-align: left; vertical-align: middle; }
+.tournament-list-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    font-size: 1em;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.tournament-list-table th, .tournament-list-table td {
+    border: none;
+    border-bottom: 1px solid #e9ecef;
+    padding: 16px 20px;
+    text-align: left;
+    vertical-align: middle;
+}
 .tournament-list-table tbody tr:last-child td { border-bottom: none; }
-.tournament-list-table th { background-color: #f1f3f5; font-weight: 600; color: #495057; font-size: 0.9em; text-transform: uppercase; letter-spacing: 0.75px; }
+.tournament-list-table th {
+    background-color: #f1f3f5;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 0.75px;
+}
 .tournament-list-table tbody tr:hover { background-color: #f8f9fa; }
-.tournament-list-table td a { text-decoration: none; color: #3a5da8; font-weight: 600; transition: color 0.2s ease; }
-.tournament-list-table td a:hover { color: #2a437a; text-decoration: underline; }
-
+.tournament-list-table td a {
+    font-weight: 600;
+    /* color inherited from global 'a' */
+}
 
 /* --- Responsive Design --- */
-@media (max-width: 992px) { /* ... (existing responsive styles) ... */ }
-@media (max-width: 768px) { /* ... (existing responsive styles) ... */
-     /* Adjust pairings table */
-     #pairings-table th, #pairings-table td { padding: 12px 10px; font-size: 0.9em; }
-     #pairings-table th:nth-child(1), #pairings-table td:nth-child(1) { width: 60px; }
-     #pairings-table th:nth-child(2), #pairings-table td:nth-child(2), #pairings-table th:nth-child(3), #pairings-table td:nth-child(3) { width: auto; }
-     span.winner::before { margin-right: 5px; }
-     /* Adjust standings table */
-     #standings-table th, #standings-table td { padding: 10px 8px; font-size: 0.9em; }
-     #standings-table th:nth-child(1), #standings-table td:nth-child(1), /* Rank */
-     #standings-table th:nth-child(3), #standings-table td:nth-child(3), /* Record */
-     #standings-table th:nth-child(4), #standings-table td:nth-child(4), /* OWP */
-     #standings-table th:nth-child(5), #standings-table td:nth-child(5) { width: auto; } /* OOWP */
+@media (max-width: 768px) {
+    header h1 { font-size: 2em; }
+    header p { font-size: 1em; }
+
+    .container { padding: 0 15px; }
+    main .container { padding: 25px; }
+
+    .controls { flex-direction: column; align-items: stretch; gap: 15px; }
+    .search-container { min-width: 100%; flex-basis: auto; }
+
+     /* Reduce padding on smaller screens for tables */
+     .results-table th,
+     .results-table td { padding: 12px 10px; font-size: 0.92em; }
+
+     /* Allow table columns to shrink more */
+     #pairings-table th:nth-child(1), #pairings-table td:nth-child(1) { width: 12%; }
+     #pairings-table th:nth-child(2), #pairings-table td:nth-child(2),
+     #pairings-table th:nth-child(3), #pairings-table td:nth-child(3) { width: 44%; }
+
+     #standings-table th:nth-child(1), #standings-table td:nth-child(1) { width: 10%; } /* Rank */
+     #standings-table th:nth-child(2), #standings-table td:nth-child(2) { width: 35%; } /* Player Name */
+     #standings-table th:nth-child(3), #standings-table td:nth-child(3) { width: 18%; } /* Record */
+     #standings-table th:nth-child(4), #standings-table td:nth-child(4), /* OWP % */
+     #standings-table th:nth-child(5), #standings-table td:nth-child(5) { width: 18.5%; } /* OOWP % */
+
+     span.winner { padding-left: 22px; }
+     span.winner::before { font-size: 1em; }
+
+     #current-round-title, #standings-title { font-size: 1.6em; margin-bottom: 20px; }
 }
-@media (max-width: 576px) { /* ... (existing responsive styles) ... */
-     /* Adjust pairings table */
-     #pairings-table { font-size: 0.85em; }
-     #pairings-table th, #pairings-table td { padding: 10px 6px; }
-     #pairings-table th:nth-child(1), #pairings-table td:nth-child(1) { width: 45px; }
-     /* Adjust standings table */
-     #standings-table { font-size: 0.85em; }
-     #standings-table th, #standings-table td { padding: 8px 5px; }
+
+@media (max-width: 576px) {
+    header h1 { font-size: 1.8em; }
+    header p { font-size: 0.95em; }
+
+     /* Further reduce padding */
+     .results-table th,
+     .results-table td { padding: 10px 8px; font-size: 0.88em; }
+
+     /* Adjust winner icon padding */
+     span.winner { padding-left: 20px; }
+     span.winner::before { font-size: 0.95em; }
+
+     #round-tabs button { padding: 8px 15px; font-size: 0.9em; }
+     #search-input { padding: 10px 35px 10px 12px; font-size: 0.9em;}
 }
