@@ -6,20 +6,23 @@
 }
 
 :root {
-    /* Inspired Color Palette */
-    --gradient-start: #F97794; /* Lighter Pink/Red */
-    --gradient-end: #F8A78E; /* Lighter Orange/Peach */
-    --accent-color: #FFFFFF; /* White for text on gradient */
-    --text-dark: #2c3e50; /* Dark grey/blue for body text */
-    --text-light: #ecf0f1; /* Very light grey for subtle text on dark */
-    --text-link: #FFFFFF; /* Orange link color */
-    --text-link-hover: #d35400; /* Darker orange hover */
-    --bg-light: #FFFFFF;
-    --bg-page: #f9fafb; /* Very light grey page background */
-    --border-color: #e4e7eb; /* Lighter border */
-    --shadow-color: rgba(44, 62, 80, 0.1); /* Shadow based on text color */
-    --border-radius: 8px;
-    --border-radius-large: 12px;
+    /* Material Design Inspired Palette */
+    --md-primary-color: #3f51b5; /* Indigo 500 */
+    --md-primary-dark: #303f9f;  /* Indigo 700 */
+    --md-accent-color: #ff9800; /* Amber 500 */
+    --md-text-primary: rgba(0, 0, 0, 0.87); /* Standard text */
+    --md-text-secondary: rgba(0, 0, 0, 0.54); /* Secondary text */
+    --md-text-on-primary: #FFFFFF;
+    --md-bg-card: #FFFFFF;
+    --md-bg-page: #f5f5f5; /* Light grey page background */
+    --md-divider-color: rgba(0, 0, 0, 0.12);
+    --md-border-radius: 4px; /* Standard Material radius */
+    /* Material Elevation Shadows (dp = density-independent pixels) */
+    --shadow-dp1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    --shadow-dp2: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+    --shadow-dp4: 0 4px 8px rgba(0,0,0,0.19), 0 3px 10px rgba(0,0,0,0.22);
+    --shadow-dp6: 0 6px 12px rgba(0,0,0,0.20), 0 4px 15px rgba(0,0,0,0.18);
+    --shadow-dp8: 0 8px 17px rgba(0,0,0,0.20), 0 6px 20px rgba(0,0,0,0.19);
 }
 
 html {
@@ -27,458 +30,254 @@ html {
 }
 
 body {
-    font-family: 'Poppins', sans-serif;
+    font-family: 'Poppins', 'Roboto', sans-serif; /* Add Roboto as fallback */
     line-height: 1.6;
-    background-color: var(--bg-page);
-    color: var(--text-dark);
+    background-color: var(--md-bg-page);
+    color: var(--md-text-primary);
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    font-size: 16px; /* Base font size */
 }
 
 .container {
     width: 100%;
-    max-width: 1200px;
+    max-width: 1100px; /* Slightly adjusted common Material width */
     margin: 0 auto;
-    padding: 0 20px;
+    padding: 0 16px; /* Standard Material padding */
 }
 
 a {
-   color: var(--text-link);
+   color: var(--md-primary-color); /* Use primary for links */
    text-decoration: none;
+   font-weight: 600;
    transition: color 0.2s ease;
 }
-
 a:hover {
-    color: var(--text-link-hover);
-    text-decoration: none; /* Keep underline off for modern feel */
+    color: var(--md-primary-dark);
 }
 
-/* --- Main Header (Homepage & Tournament Pages) --- */
-header.main-header, /* Target homepage header */
-header:not(.main-header) /* Target tournament page header (if not given main-header class) */ {
-    background: linear-gradient(110deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
-    color: var(--accent-color);
-    padding: 1.5rem 0; /* Reduced padding for a slimmer header */
-    margin-bottom: 0; /* Remove margin-bottom for homepage hero */
-    position: relative;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-/* Add margin back for tournament pages specifically */
+/* --- Header (App Bar Style) --- */
+header.main-header,
 header:not(.main-header) {
-    margin-bottom: 40px;
-    text-align: center; /* Center tournament header content by default */
+    background-color: var(--md-primary-color);
+    color: var(--md-text-on-primary);
+    padding: 16px 0; /* Standard app bar height */
+    margin-bottom: 0; /* Remove default margin */
+    position: sticky; /* Make header sticky */
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-dp4); /* Standard app bar shadow */
+}
+/* Add margin below header only on tournament pages */
+header:not(.main-header) {
+    margin-bottom: 32px;
+    text-align: left; /* Align left for tournament titles */
 }
 
 header .container {
     display: flex;
-    justify-content: space-between; /* Space out logo and nav on desktop */
+    justify-content: space-between;
     align-items: center;
 }
 
 .logo {
-    font-size: 1.8em;
-    font-weight: 700;
-    letter-spacing: -0.5px;
+    font-size: 1.5em; /* Standard title size */
+    font-weight: 600;
+    letter-spacing: 0.5px;
 }
 
-/* Basic Nav styling if needed later */
-/* header nav a { color: var(--accent-color); margin-left: 20px; font-weight: 600; } */
-/* header nav a:hover { text-decoration: underline; } */
-
-/* Tournament Page Specific Header Title */
+/* Tournament Page Header Title & Sub */
 header:not(.main-header) h1 {
-    font-weight: 700;
-    font-size: 2.4em;
-    margin-bottom: 0.5rem;
-    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+    font-size: 1.8em;
+    font-weight: 600;
+    margin-bottom: 0.1rem;
+    text-shadow: none; /* Remove text shadow */
 }
 header:not(.main-header) p {
-    font-size: 1.05em;
-    opacity: 0.9;
-    margin-bottom: 0.8rem; /* Reduced margin */
-}
-/* Style the "Back to list" link specifically */
-header:not(.main-header) .container > p a {
-    color: var(--accent-color);
-    font-weight: 600;
     font-size: 0.9em;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.5);
-    transition: border-color 0.2s ease;
-}
-header:not(.main-header) .container > p a:hover {
-     color: var(--accent-color);
-     border-color: rgba(255, 255, 255, 0.9);
-     text-decoration: none;
-}
-
-/* Update Status - Common styling, position adjusted in media queries */
-#update-status {
-    position: absolute;
-    font-size: 0.75em;
-    color: var(--accent-color);
-    background-color: rgba(0, 0, 0, 0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
     opacity: 0.8;
-    /* Desktop position (tournament page) */
-    bottom: 8px;
-    right: 15px;
+    margin-bottom: 0.5rem;
 }
-/* Hide status on main header (homepage) */
-header.main-header #update-status {
-    display: none;
+header:not(.main-header) .container > p a { /* Back link */
+    color: var(--md-text-on-primary); opacity: 0.9; font-weight: 500; font-size: 0.85em; border-bottom: none; transition: opacity 0.2s ease;
 }
+header:not(.main-header) .container > p a:hover { color: var(--md-text-on-primary); opacity: 1; text-decoration: none; }
 
+/* Update Status - Less prominent */
+#update-status {
+    position: absolute; bottom: 4px; right: 16px; font-size: 0.7em; color: var(--md-text-on-primary); background-color: transparent; padding: 2px 0; border-radius: 0; opacity: 0.7;
+}
+header.main-header #update-status { display: none; }
 
-/* --- Hero Section (Homepage) --- */
-#hero {
-    background: linear-gradient(110deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
-    color: var(--accent-color);
-    padding: 6rem 0 7rem 0;
-    text-align: center;
-}
-
-#hero h1 {
-    font-size: 3.5em;
-    font-weight: 800;
-    margin-bottom: 1rem;
-    line-height: 1.2;
-    text-shadow: 1px 2px 4px rgba(0, 0, 0, 0.15);
-}
-
-#hero p {
-    font-size: 1.3em;
-    opacity: 0.9;
-    max-width: 700px;
-    margin: 0 auto 1.5rem auto; /* Reduced bottom margin */
-}
-/* Style the Admin link in the hero section */
-#hero p a {
-    color: var(--accent-color);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.5);
-    transition: border-color 0.2s ease;
-}
-#hero p a:hover {
-    border-color: rgba(255, 255, 255, 0.9);
-    text-decoration: none;
-}
+/* --- Hero Section (Homepage) - Remove for flatter list focus */
+/* Hide Hero - focus directly on the list */
+#hero { display: none; }
 
 /* --- Tournament List Section (Homepage) --- */
 #tournament-list {
-    padding: 60px 0;
+    padding: 32px 0; /* Padding above/below list */
 }
 
 #tournament-list h2 {
-    text-align: center;
-    font-size: 2em;
-    font-weight: 700;
-    margin-bottom: 40px;
-    color: var(--text-dark);
-}
-
-.tournament-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 30px;
-}
-
-.tournament-card {
-    display: block;
-    background-color: var(--bg-light);
-    padding: 25px 30px;
-    border-radius: var(--border-radius-large);
-    box-shadow: 0 5px 15px var(--shadow-color);
-    text-align: center;
-    font-size: 1.15em;
+    font-size: 1.5em; /* Smaller heading */
     font-weight: 600;
-    color: var(--text-dark);
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, color 0.2s ease-in-out;
+    margin-bottom: 24px;
+    color: var(--md-text-primary);
+    text-align: left; /* Align heading left */
+}
+
+/* Grid becomes list */
+.tournament-grid {
+    display: flex; /* Use flexbox for simple list */
+    flex-direction: column;
+    gap: 8px; /* Small gap between cards */
+}
+
+.tournament-card { /* Material Card Style */
+    display: block;
+    background-color: var(--md-bg-card);
+    padding: 16px 24px; /* Standard card padding */
+    border-radius: var(--md-border-radius);
+    box-shadow: var(--shadow-dp1);
+    text-align: left; /* Align text left */
+    font-size: 1.1em; /* Slightly larger text */
+    font-weight: 500; /* Medium weight */
+    color: var(--md-text-primary);
+    transition: box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out;
 }
 
 .tournament-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(44, 62, 80, 0.15);
-    color: var(--text-link);
+    box-shadow: var(--shadow-dp4); /* Increase shadow on hover */
+    background-color: rgba(0,0,0,0.03); /* Subtle background tint */
+    color: var(--md-text-primary); /* Keep text color */
     text-decoration: none;
+    transform: none; /* No lift needed with shadow change */
 }
 
-
-/* --- Tournament Page Specific Content --- */
-/* Main Content Container */
+/* --- Tournament Page Main Content --- */
 main .container {
-    background: var(--bg-light);
-    padding: 40px;
-    border-radius: var(--border-radius-large);
-    box-shadow: 0 6px 25px var(--shadow-color);
+    background: var(--md-bg-card); /* White card background */
+    padding: 24px; /* Standard Material padding */
+    border-radius: var(--md-border-radius);
+    box-shadow: var(--shadow-dp2); /* Slightly elevated content */
 }
 
 /* Controls (Tabs & Search) */
 .controls {
-    margin-bottom: 35px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px 20px; /* Allow wrapping gap */
-    align-items: center;
-    padding-bottom: 25px;
-    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--md-divider-color);
 }
+#round-tabs { display: flex; gap: 8px; flex-grow: 1; flex-wrap: wrap; }
 
-#round-tabs {
-    display: flex;
-    gap: 10px;
-    flex-grow: 1; /* Allow tabs to take available space */
-    flex-wrap: wrap; /* Allow tabs to wrap */
-}
-
+/* Material Tabs (Text buttons) */
 #round-tabs button {
-    padding: 9px 18px;
+    padding: 8px 16px;
     cursor: pointer;
-    border: 1px solid var(--border-color);
-    background-color: var(--bg-light);
-    color: var(--text-dark);
-    border-radius: var(--border-radius);
+    border: none; /* Remove border */
+    background-color: transparent; /* Transparent background */
+    color: var(--md-text-secondary); /* Secondary text color */
+    border-radius: var(--md-border-radius);
     font-weight: 600;
     font-size: 0.9em;
-    transition: all 0.2s ease-in-out;
+    text-transform: uppercase; /* Uppercase tabs */
+    transition: background-color 0.2s ease, color 0.2s ease;
+    position: relative; /* For potential future indicator */
 }
-
 #round-tabs button.active {
-    background: linear-gradient(110deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
-    color: var(--accent-color);
-    border-color: transparent;
-    box-shadow: 0 2px 5px rgba(0,0,0, 0.1);
+    color: var(--md-primary-color); /* Primary color for active text */
+    /* Optional: Add an indicator line */
+    /* border-bottom: 2px solid var(--md-primary-color); */
 }
-
 #round-tabs button:hover:not(.active) {
-    background-color: #f1f4f7;
-    border-color: #d8dde3;
-    color: var(--text-dark);
+    background-color: rgba(0,0,0,0.04); /* Subtle hover */
+    color: var(--md-text-primary);
 }
 
-/* Search Container */
-.search-container {
-    position: relative;
-    display: flex;
-    align-items: center;
-    min-width: 250px; /* Minimum width before shrinking/wrapping */
-    flex-basis: 280px; /* Preferred width */
-}
-
+/* Search Container / Input Field */
+.search-container { position: relative; display: flex; align-items: center; min-width: 240px; flex-basis: 280px; }
 #search-input {
-    flex-grow: 1;
-    padding: 10px 38px 10px 15px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    font-size: 0.9em;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    width: 100%; /* Ensure it fills container */
+    flex-grow: 1; padding: 10px 38px 10px 12px; border: none; border-bottom: 1px solid rgba(0,0,0,0.42); /* Bottom border only */ border-radius: 0; font-size: 1em; transition: border-color 0.2s ease, box-shadow 0.2s ease; width: 100%; background-color: transparent;
 }
 #search-input:focus {
-    outline: none;
-    border-color: var(--gradient-start);
-    box-shadow: 0 0 0 3px rgba(249, 119, 148, 0.15);
+    outline: none; border-bottom: 2px solid var(--md-primary-color); /* Thicker colored border on focus */ padding-bottom: 9px; /* Adjust padding to prevent jump */ box-shadow: none; /* No extra shadow */
 }
-#clear-search-btn {
-    position: absolute; right: 5px; top: 50%; transform: translateY(-50%); display: none; background: none; border: none; color: #a0aec0; cursor: pointer; font-size: 1.5em; line-height: 1; padding: 0 8px; font-weight: bold; opacity: 0.7; transition: all 0.2s ease;
-}
-#clear-search-btn:hover { color: var(--text-dark); opacity: 1; }
+#clear-search-btn { position: absolute; right: 0px; top: 50%; transform: translateY(-50%); display: none; background: none; border: none; color: var(--md-text-secondary); cursor: pointer; font-size: 1.5em; line-height: 1; padding: 0 8px; font-weight: bold; opacity: 0.7; transition: all 0.2s ease; }
+#clear-search-btn:hover { color: var(--md-text-primary); opacity: 1; }
 
 /* Pairings/Standings Containers & Titles */
-#pairings-container, #standings-container {
-    margin-top: 30px;
-}
+#pairings-container, #standings-container { margin-top: 32px; }
 #current-round-title, #standings-title {
-    font-size: 1.6em;
-    font-weight: 700;
-    color: var(--text-dark);
-    margin-bottom: 20px;
-    padding-bottom: 10px;
-    border-bottom: 2px solid var(--gradient-end);
-    display: inline-block;
+    font-size: 1.3em; /* Title size */ font-weight: 600; color: var(--md-text-primary); margin-bottom: 16px; padding-bottom: 0; border-bottom: none; /* Remove border */ display: block; /* Full width */
 }
 
 /* General Table Styling */
 .results-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 15px;
-    font-size: 0.95em;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    overflow: hidden;
-    box-shadow: 0 3px 10px var(--shadow-color);
+    width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.9em; /* Smaller table text */ border: none; /* Remove outer border/shadow */ border-radius: 0; overflow: visible; box-shadow: none;
 }
 .results-table th, .results-table td {
-    border: none;
-    border-bottom: 1px solid var(--border-color);
-    padding: 14px 18px;
-    text-align: left;
-    vertical-align: middle;
+    border: none; border-bottom: 1px solid var(--md-divider-color); padding: 12px 16px; /* Adjust padding */ text-align: left; vertical-align: middle;
 }
 .results-table tbody tr:last-child td { border-bottom: none; }
-.results-table tbody tr:nth-child(odd) { background-color: #fcfdfe; }
-.results-table tbody tr:hover { background-color: #fff8f5; }
+.results-table tbody tr:nth-child(odd) { background-color: transparent; } /* Remove zebra striping */
+.results-table tbody tr:hover { background-color: rgba(0,0,0,0.03); } /* Subtle hover */
 .results-table th {
-    background-color: #f8f9fa;
-    font-weight: 600;
-    color: #4a5568;
-    font-size: 0.85em;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
+    background-color: transparent; /* No header background */ font-weight: 600; color: var(--md-text-secondary); /* Secondary color for headers */ font-size: 0.85em; text-transform: none; /* No uppercase */ letter-spacing: normal; padding-bottom: 8px; /* Space below header text */
 }
 
-/* Specific Column Styles */
+/* Specific Column Styles - Keep as needed, adjust widths */
 #pairings-table th:nth-child(1), #pairings-table td:nth-child(1) { width: 10%; text-align: center; }
-#pairings-table th:nth-child(2), #pairings-table td:nth-child(2) { width: 45%; }
-#pairings-table th:nth-child(3), #pairings-table td:nth-child(3) { width: 45%; }
 #standings-table th:nth-child(1), #standings-table td:nth-child(1) { width: 8%; text-align: center; }
-#standings-table th:nth-child(2), #standings-table td:nth-child(2) { width: 42%; }
 #standings-table th:nth-child(3), #standings-table td:nth-child(3) { width: 15%; text-align: center; }
-#standings-table th:nth-child(4), #standings-table td:nth-child(4) { width: 17.5%; text-align: right; }
-#standings-table th:nth-child(5), #standings-table td:nth-child(5) { width: 17.5%; text-align: right; }
+#standings-table th:nth-child(4), #standings-table td:nth-child(4) { width: 18%; text-align: right; }
+#standings-table th:nth-child(5), #standings-table td:nth-child(5) { width: 18%; text-align: right; }
 
 /* Winner Highlighting */
-span.winner {
-    font-weight: 600;
-    color: #27ae60;
-    position: relative;
-    padding-left: 22px;
-}
-span.winner::before {
-    content: '✓';
-    position: absolute; left: 0; top: 50%; transform: translateY(-50%); display: inline-block; vertical-align: middle; color: #27ae60; font-weight: bold; font-size: 1.1em;
-}
+span.winner { font-weight: 600; color: var(--md-text-primary); padding-left: 0; } /* Remove icon padding */
+span.winner::before { display: none; } /* Hide icon */
 
 /* Messages */
 #loading-message, #standings-loading-message, #no-standings-message, #no-search-results {
-    font-style: normal; color: #718096; text-align: center; padding: 30px 20px; font-size: 1em; background-color: #f8f9fa; border-radius: var(--border-radius); margin-top: 20px; border: 1px solid var(--border-color);
+    font-style: normal; color: var(--md-text-secondary); text-align: center; padding: 24px 16px; font-size: 0.9em; background-color: transparent; border-radius: 0; margin-top: 16px; border: none; /* No border */
 }
 #no-search-results { display: none; }
 .hidden-row { display: none; }
 
 /* --- Footer --- */
 footer.main-footer {
-    margin-top: 60px;
-    background-color: #ecf0f1;
-    color: #718096;
-    padding: 2rem 0;
-    text-align: center;
-    font-size: 0.9em;
+    margin-top: 48px; background-color: transparent; /* No footer background */ color: var(--md-text-secondary); padding: 24px 0; text-align: center; font-size: 0.85em; border-top: 1px solid var(--md-divider-color);
 }
 
 /* --- Responsive Design --- */
 @media (max-width: 992px) {
-    #hero h1 { font-size: 3em; }
-    #hero p { font-size: 1.2em; }
+    /* No hero section changes needed */
 }
 
 @media (max-width: 768px) {
-    /* --- Homepage Header Responsive --- */
-    header.main-header .container {
-        flex-direction: column; /* Stack logo/nav */
-        gap: 10px;
-    }
+    /* Stack header items */
+    header.main-header .container, header:not(.main-header) .container { flex-direction: column; gap: 8px; text-align: center; }
+    header:not(.main-header) { margin-bottom: 24px; padding-bottom: 8px; } /* Adjust tournament header */
+    header:not(.main-header) .container { padding-bottom: 0;} /* Remove extra padding for status */
+    #update-status { position: static; transform: none; margin-top: 8px; display: inline-block; } /* Make status inline */
 
-    /* --- Tournament Page Header Responsive --- */
-    header:not(.main-header) .container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        padding-bottom: 35px; /* Add padding below content for status */
-    }
-    header:not(.main-header) h1 {
-        font-size: 2em; /* Adjust title size */
-    }
-    header:not(.main-header) p {
-        font-size: 1em; /* Adjust paragraph size */
-        margin-bottom: 0.6rem; /* Reduce bottom margin */
-    }
-     /* Reposition status indicator for tournament page */
-     #update-status { /* Applies only when not main-header */
-         bottom: 8px; /* Lower position */
-         left: 50%;
-         transform: translateX(-50%); /* Center it */
-         right: auto; /* Override desktop right positioning */
-     }
+    #tournament-list { padding: 24px 0; }
+    #tournament-list h2 { font-size: 1.3em; margin-bottom: 16px; }
+    .tournament-grid { gap: 8px; }
+    .tournament-card { padding: 12px 16px; font-size: 1em; }
 
-
-    /* --- Hero Section Responsive --- */
-    #hero { padding: 4rem 0 5rem 0; }
-    #hero h1 { font-size: 2.5em; }
-    #hero p { font-size: 1.1em; }
-
-    /* --- Tournament List Responsive --- */
-    #tournament-list { padding: 40px 0; }
-    #tournament-list h2 { font-size: 1.8em; margin-bottom: 30px; }
-    .tournament-grid { gap: 20px; }
-    .tournament-card { padding: 20px 25px; font-size: 1.1em; }
-
-    /* --- Tournament Page Content Responsive --- */
-    .container { padding: 0 15px; } /* Reduce global padding */
-    main .container { padding: 30px 15px; } /* Adjust padding specific to main content */
-
-    /* Stack controls vertically */
-    .controls {
-        flex-direction: column;
-        align-items: stretch; /* Make children full width */
-        gap: 15px;
-     }
-    .search-container { min-width: 100%; flex-basis: auto; } /* Search takes full width */
-    #round-tabs {
-        justify-content: center; /* Center tabs if they don't fill width */
-    }
-
-
-     /* Reduce padding on smaller screens for tables */
-     .results-table th,
-     .results-table td { padding: 12px 8px; font-size: 0.9em; }
-
-     /* Adjust table column widths */
-     #pairings-table th:nth-child(1), #pairings-table td:nth-child(1) { width: 15%; } /* Slightly more for table# */
-     #pairings-table th:nth-child(2), #pairings-table td:nth-child(2),
-     #pairings-table th:nth-child(3), #pairings-table td:nth-child(3) { width: 42.5%; } /* Adjust player widths */
-
-     #standings-table th:nth-child(1), #standings-table td:nth-child(1) { width: 12%; } /* Rank */
-     #standings-table th:nth-child(2), #standings-table td:nth-child(2) { width: 40%; } /* Player Name */
-     #standings-table th:nth-child(3), #standings-table td:nth-child(3) { width: 18%; } /* Record */
-     #standings-table th:nth-child(4), #standings-table td:nth-child(4), /* OWP % */
-     #standings-table th:nth-child(5), #standings-table td:nth-child(5) { width: 15%; text-align: right; } /* OOWP % - Adjust widths slightly */
-
-     span.winner { padding-left: 22px; }
-     span.winner::before { font-size: 1em; }
-
-     #current-round-title, #standings-title { font-size: 1.4em; }
+    main .container { padding: 16px; }
+    .controls { flex-direction: column; align-items: stretch; gap: 16px; }
+    #round-tabs { justify-content: flex-start; } /* Align tabs left on mobile */
+    .search-container { min-width: 100%; }
+    .results-table th, .results-table td { padding: 10px 8px; font-size: 0.85em; }
+    #current-round-title, #standings-title { font-size: 1.2em; }
 }
 
 @media (max-width: 576px) {
-     /* --- Header Responsive --- */
-    header.main-header .logo { font-size: 1.6em;}
-    header:not(.main-header) h1 { font-size: 1.8em; }
-    header:not(.main-header) p { font-size: 0.95em; }
-
-    /* --- Hero Responsive --- */
-    #hero h1 { font-size: 2.2em; }
-    #hero p { font-size: 1em; }
-
-    /* --- Tournament List Responsive --- */
-    .tournament-grid { grid-template-columns: 1fr; gap: 15px; } /* Single column */
-    .tournament-card { padding: 18px 20px; font-size: 1.05em; }
-
-    /* --- Tournament Page Content Responsive --- */
-     main .container { padding: 25px 10px; } /* Reduce padding further */
-
-     /* Further reduce padding in tables */
-     .results-table th,
-     .results-table td { padding: 10px 5px; font-size: 0.85em; }
-
-     /* Adjust winner icon padding */
-     span.winner { padding-left: 18px; }
-     span.winner::before { font-size: 0.95em; }
-
-     /* Adjust tab button padding */
-     #round-tabs button { padding: 8px 12px; font-size: 0.85em; }
-     #search-input { padding: 10px 35px 10px 12px; font-size: 0.9em;}
-     #current-round-title, #standings-title { font-size: 1.3em; }
+    body { font-size: 15px; } /* Slightly smaller base font */
+    .logo { font-size: 1.3em; }
+    header:not(.main-header) h1 { font-size: 1.5em; }
+    .results-table th, .results-table td { padding: 8px 4px; font-size: 0.8em; /* Smaller table text */ }
+    #round-tabs button { padding: 6px 12px; font-size: 0.8em; }
+    #search-input { font-size: 0.9em;}
+    #current-round-title, #standings-title { font-size: 1.1em; }
 }
