@@ -2,24 +2,21 @@
 
 name: Process Tournament TDF Upload
 
-# Trigger this workflow when a .tdf file is pushed to the 'incoming' directory on the main branch
 on:
   push:
     branches:
-      - main # Or your default branch name (e.g., master)
+      - main
     paths:
-      # Trigger on .tdf files
       - 'incoming/**.tdf'
 
-# Permissions needed for the Action to commit changes back to the repository
 permissions:
-  contents: write # Allow writing repository content
+  contents: write
 
 jobs:
   build_and_deploy:
-    runs-on: ubuntu-latest # Use the latest Ubuntu runner
+    runs-on: ubuntu-latest
 
-    outputs: # Define outputs for use in later steps/debugging if needed
+    outputs:
       processed_folder: ${{ steps.process_file.outputs.tournament_folder }}
       original_name: ${{ steps.process_file.outputs.tournament_name }}
 
@@ -28,7 +25,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetch all history
+          fetch-depth: 0
 
       # Step 2: Install xmlstarlet
       - name: Install xmlstarlet
@@ -40,36 +37,29 @@ jobs:
       - name: Find Uploaded TDF
         id: find_file
         run: |
-          # Find the first .tdf file in incoming/
           TDF_FILE=$(find incoming -name '*.tdf' -print -quit)
           if [ -z "$TDF_FILE" ]; then
             echo "No TDF file found in incoming/. Exiting."
             exit 1
           fi
           echo "Found TDF file: $TDF_FILE"
-          # Use a consistent output name
           echo "file_path=$TDF_FILE" >> $GITHUB_OUTPUT
 
       # Step 4: Process Tournament File
       - name: Process Tournament File
         id: process_file
         run: |
-          # Uses the output from the previous step
           INPUT_FILE="${{ steps.find_file.outputs.file_path }}"
           echo "Processing file: $INPUT_FILE"
 
-          # Extract tournament name from XML content (should work for TDF if it's XML)
           TOURNAMENT_NAME=$(xmlstarlet sel -t -v '/tournament/data/name' "$INPUT_FILE")
           if [ -z "$TOURNAMENT_NAME" ]; then
             echo "Could not extract tournament name from $INPUT_FILE. Using filename as fallback."
-            # Fallback: Use filename without extension if name tag is missing
-            # Use .tdf extension in basename
             BASENAME=$(basename "$INPUT_FILE" .tdf)
-            TOURNAMENT_NAME=${BASENAME//_/ } # Replace underscores with spaces
+            TOURNAMENT_NAME=${BASENAME//_/ }
           fi
           echo "Original Tournament Name: $TOURNAMENT_NAME"
 
-          # Sanitize tournament name for folder path
           SANITIZED_NAME=$(echo "$TOURNAMENT_NAME" | sed -e 's/ /-/g' -e 's/[^A-Za-z0-9-]//g')
           if [ -z "$SANITIZED_NAME" ]; then
             echo "Sanitized name is empty. Using 'Unnamed-Tournament-$(date +%s)'."
@@ -78,10 +68,8 @@ jobs:
           TOURNAMENT_FOLDER="$SANITIZED_NAME"
           echo "Target Folder: $TOURNAMENT_FOLDER"
 
-          # Create target directory structure
           mkdir -p "$TOURNAMENT_FOLDER/data"
 
-          # Create the index.html file for this specific tournament using heredoc
           cat << EOF > "$TOURNAMENT_FOLDER/index.html"
           <!DOCTYPE html>
           <html lang="en">
@@ -89,19 +77,17 @@ jobs:
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <title>${TOURNAMENT_NAME} - Pairings</title>
-              <!-- Google Font -->
               <link rel="preconnect" href="https://fonts.googleapis.com">
               <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
               <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-              <!-- Link to shared CSS file -->
               <link rel="stylesheet" href="../assets/style.css">
           </head>
           <body>
               <header>
                   <div class="container">
-                       <h1 id="tournament-name">${TOURNAMENT_NAME}</h1> <!-- Set tournament name directly -->
-                       <p id="tournament-info"></p> <!-- Script updates city/country -->
-                       <p style="margin-top: 5px;"><a href="../index.html" style="color: #ffcb05; font-size: 0.9em;">← Back to Tournament List</a></p> <!-- Added Back Link -->
+                       <h1 id="tournament-name">${TOURNAMENT_NAME}</h1>
+                       <p id="tournament-info"></p>
+                       <p style="margin-top: 5px;"><a href="../index.html" style="color: #ffcb05; font-size: 0.9em;">← Back to Tournament List</a></p>
                        <!-- Update status span will be added here by JS -->
                   </div>
               </header>
@@ -109,10 +95,9 @@ jobs:
                   <div class="container">
                       <div class="controls">
                           <nav id="round-tabs"></nav>
-                          <!-- Wrap input and button -->
                           <div class="search-container">
                               <input type="text" id="search-input" placeholder="Search by Player Name...">
-                              <button type="button" id="clear-search-btn" class="clear-search-button" title="Clear search">×</button> <!-- The '×' symbol -->
+                              <button type="button" id="clear-search-btn" class="clear-search-button" title="Clear search">×</button>
                           </div>
                       </div>
                       <div id="pairings-container">
@@ -128,49 +113,58 @@ jobs:
                               <tbody id="pairings-body"></tbody>
                           </table>
                            <p id="loading-message">Loading pairings...</p>
-                           <!-- <p id="no-search-results" style="display:none; text-align: center; margin-top: 15px; color: #6c757d;">No players found matching your search.</p> -->
                       </div>
+
+                      <!-- Standings Section Placeholder -->
+                      <div id="standings-container" style="display: none; margin-top: 40px;">
+                           <h2 id="standings-title">Swiss Standings</h2>
+                           <table id="standings-table">
+                               <thead>
+                                   <tr>
+                                       <th>Rank</th>
+                                       <th>Player</th>
+                                       <th>Record</th>
+                                       <th>OWP %</th>
+                                       <th>OOWP %</th>
+                                   </tr>
+                               </thead>
+                               <tbody id="standings-body">
+                                   <!-- Standings rows will be inserted here by JS -->
+                               </tbody>
+                           </table>
+                           <p id="standings-loading-message" style="display: none; text-align: center; margin-top: 15px; color: #6c757d;">Calculating standings...</p>
+                           <p id="no-standings-message" style="display: none; text-align: center; margin-top: 15px; color: #6c757d;">No Swiss rounds found to calculate standings.</p>
+                      </div>
+                      <!-- End Standings Section -->
+
                   </div>
               </main>
-              <!-- Link to shared JavaScript file -->
               <script src="../assets/script.js"></script>
           </body>
           </html>
           EOF
           echo "Generated $TOURNAMENT_FOLDER/index.html"
 
-          # --- Start Enhanced Debugging ---
+          # --- Debugging for mv ---
           echo "--- Debug: Before Move ---"
           echo "Source path (\$INPUT_FILE): '$INPUT_FILE'"
-          echo "Checking if source exists:"
           ls -l "$INPUT_FILE" || echo "WARNING: Source file '$INPUT_FILE' not found by ls!"
-
           echo "Target directory (\$TOURNAMENT_FOLDER/data/): '$TOURNAMENT_FOLDER/data/'"
-          echo "Checking if target directory exists:"
           ls -ld "$TOURNAMENT_FOLDER/data/" || echo "WARNING: Target directory '$TOURNAMENT_FOLDER/data/' not found by ls!"
-
           echo "Target file path: '$TOURNAMENT_FOLDER/data/tournament_data.xml'"
           echo "Attempting move command..."
-          # --- End Enhanced Debugging ---
-
-          # The actual move command
           mv "$INPUT_FILE" "$TOURNAMENT_FOLDER/data/tournament_data.xml"
-
-          # --- Start Enhanced Debugging ---
-          echo "--- Debug: After Move ---"
-          # Check the exit code of the mv command
           MV_EXIT_CODE=$?
+          echo "--- Debug: After Move ---"
           if [ $MV_EXIT_CODE -ne 0 ]; then
             echo "ERROR: 'mv' command failed with exit code $MV_EXIT_CODE!"
-            exit $MV_EXIT_CODE # Fail the workflow step
+            exit $MV_EXIT_CODE
           else
             echo "'mv' command succeeded (exit code 0)."
-            echo "Checking if target file exists:"
             ls -l "$TOURNAMENT_FOLDER/data/tournament_data.xml" || echo "ERROR: Target file '$TOURNAMENT_FOLDER/data/tournament_data.xml' not found by ls after successful mv!"
           fi
-          echo "--- End Enhanced Debugging ---"
+          echo "--- End Debugging ---"
 
-          # Set outputs for this step (original lines)
           echo "tournament_folder=$TOURNAMENT_FOLDER" >> $GITHUB_OUTPUT
           echo "tournament_name=$TOURNAMENT_NAME" >> $GITHUB_OUTPUT
 
@@ -178,7 +172,6 @@ jobs:
       - name: Update Root Index File
         run: |
           echo "Generating root index.html..."
-          # Start the HTML file using heredoc
           cat << EOF > index.html
           <!DOCTYPE html>
           <html lang="en">
@@ -186,11 +179,9 @@ jobs:
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <title>Available Tournaments</title>
-              <!-- Google Font -->
               <link rel="preconnect" href="https://fonts.googleapis.com">
               <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
               <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-              <!-- Link to shared CSS file -->
               <link rel="stylesheet" href="./assets/style.css">
           </head>
           <body>
@@ -198,7 +189,7 @@ jobs:
                   <div class="container">
                        <h1>Available Tournaments</h1>
                        <p>Select a tournament below to view pairings.</p>
-                       <p style="margin-top: 5px;"><a href="./admin_upload.html" style="color: #ffcb05; font-size: 0.9em;">Admin Upload Page</a></p> <!-- Added Upload Link -->
+                       <p style="margin-top: 5px;"><a href="./admin_upload.html" style="color: #ffcb05; font-size: 0.9em;">Admin Upload Page</a></p>
                   </div>
               </header>
               <main>
@@ -211,21 +202,13 @@ jobs:
                           </thead>
                           <tbody>
           EOF
-
-          # Find all tournament directories (excluding '.', 'assets', 'incoming', '.github', '.git')
-          # Added ! -path './.git'
           find . -maxdepth 1 -mindepth 1 -type d ! -path './assets' ! -path './incoming' ! -path './.github' ! -path './.git' -print0 | while IFS= read -r -d $'\0' dir; do
               FOLDER_NAME=$(basename "$dir")
-              # Use the folder name (sanitized) as link text - simpler than mapping back
-              # Add a row to the table for each tournament folder found
               echo "Adding row for $FOLDER_NAME"
-              # Append lines to the index.html file
               echo "                              <tr>" >> index.html
               echo "                                  <td><a href=\"./$FOLDER_NAME/\">$FOLDER_NAME</a></td>" >> index.html
               echo "                              </tr>" >> index.html
           done
-
-          # Close the HTML structure using heredoc append
           cat << EOF >> index.html
                           </tbody>
                       </table>
@@ -241,11 +224,9 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git pull # Pull latest changes before committing, avoids potential conflicts
-          git add . # Add all changes (new folder, moved file, updated root index)
-          # Commit only if there are staged changes
+          git pull
+          git add .
           if ! git diff --staged --quiet; then
-            # Use the original tournament name in the commit message if available
             ORIGINAL_NAME="${{ steps.process_file.outputs.tournament_name }}"
             COMMIT_MSG="Automated: Processed upload"
             if [ ! -z "$ORIGINAL_NAME" ]; then
