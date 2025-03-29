@@ -2,119 +2,185 @@
 
 name: Process Tournament TDF Upload
 
+# Trigger this workflow when a .tdf file is pushed to the 'incoming' directory
+# on the main branch.
 on:
   push:
     branches:
-      - main
+      - main # Or your default branch (e.g., master)
     paths:
       - 'incoming/**.tdf'
 
+# Set permissions for the workflow to allow writing content back to the repo.
 permissions:
   contents: write
 
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
-    # No outputs needed for this simplified flow
+
+    # Define outputs that can be used by other jobs or steps if needed.
+    outputs:
+      processed_folder: ${{ steps.process_file.outputs.tournament_folder }}
+      original_name: ${{ steps.process_file.outputs.tournament_name }}
 
     steps:
-      # Step 1: Checkout Repository
+      # Step 1: Checkout the repository code
+      # Fetch all history (- depth: 0) so the script in Step 5 can list
+      # all existing tournament directories.
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetch history to allow pull before push if needed (though likely removed)
+          fetch-depth: 0
 
-      # Step 2: Install xmlstarlet & jq
-      # jq is a command-line JSON processor
-      - name: Install xmlstarlet and jq
+      # Step 2: Install xmlstarlet utility
+      # This tool is used to parse the XML content of the .tdf file.
+      - name: Install xmlstarlet
         run: |
           sudo apt-get update
-          sudo apt-get install -y xmlstarlet jq
+          sudo apt-get install -y xmlstarlet
 
-      # Step 3: Find Uploaded TDF
+      # Step 3: Find the uploaded .tdf file
+      # Locates the specific .tdf file within the 'incoming' directory
+      # that triggered the workflow. Exits if no file is found.
       - name: Find Uploaded TDF
         id: find_file
         run: |
           TDF_FILE=$(find incoming -name '*.tdf' -print -quit)
-          if [ -z "$TDF_FILE" ]; then echo "No TDF file found."; exit 1; fi
+          if [ -z "$TDF_FILE" ]; then
+            echo "No TDF file found in incoming/. Exiting."
+            exit 1
+          fi
           echo "Found TDF file: $TDF_FILE"
+          # Output the file path for use in the next step
           echo "file_path=$TDF_FILE" >> $GITHUB_OUTPUT
 
-      # Step 4: Process TDF -> XML and Get Info
-      - name: Process TDF and Extract Info
-        id: process_tdf
+      # Step 4: Process the Tournament File
+      # Extracts information, creates a dedicated folder, generates the
+      # tournament-specific index.html, and moves the renamed TDF file.
+      - name: Process Tournament File
+        id: process_file
         run: |
           INPUT_FILE="${{ steps.find_file.outputs.file_path }}"
           echo "Processing file: $INPUT_FILE"
 
-          # Extract Info (Handle potential errors gracefully)
-          TOURNAMENT_NAME=$(xmlstarlet sel -t -v '/tournament/data/name' "$INPUT_FILE" 2>/dev/null || echo "Unknown Tournament")
-          TOURNAMENT_DATE=$(xmlstarlet sel -t -v '/tournament/data/startdate' "$INPUT_FILE" 2>/dev/null || date +%m/%d/%Y) # Format: MM/DD/YYYY
+          # Extract tournament name using xmlstarlet, provide a fallback if extraction fails
+          TOURNAMENT_NAME=$(xmlstarlet sel -t -v '/tournament/data/name' "$INPUT_FILE" 2>/dev/null || echo "")
+          if [ -z "$TOURNAMENT_NAME" ]; then
+            echo "Could not extract tournament name. Using filename fallback."
+            BASENAME=$(basename "$INPUT_FILE" .tdf)
+            TOURNAMENT_NAME=${BASENAME//_/ } # Replace underscores with spaces
+          fi
+          echo "Original Tournament Name: $TOURNAMENT_NAME"
 
-          # Format date for sorting (YYYY-MM-DD)
-          FORMATTED_DATE=$(date -d "$TOURNAMENT_DATE" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)
-
-          # Sanitize name for folder/URL slug
+          # Sanitize the tournament name to create a safe folder name
+          # Transliterate to basic ASCII, replace non-alphanumeric with hyphen, trim leading/trailing hyphens, convert to lowercase
           SANITIZED_NAME=$(echo "$TOURNAMENT_NAME" | iconv -t ascii//TRANSLIT | sed -E 's/[^a-zA-Z0-9]+/-/g' | sed -E 's/^-+|-+$//g' | tr '[:upper:]' '[:lower:]')
+          # Ensure sanitized name is not empty
           if [ -z "$SANITIZED_NAME" ]; then SANITIZED_NAME="unnamed-tournament-$(date +%s)"; fi
           TOURNAMENT_FOLDER="$SANITIZED_NAME"
           echo "Target Folder: $TOURNAMENT_FOLDER"
 
-          # Create directory & move/rename XML
+          # Create the directory structure for the tournament
           mkdir -p "$TOURNAMENT_FOLDER/data"
+
+          # Generate the index.html file for this specific tournament
+          # This includes placeholders for data filled by script.js and links relative assets
+          cat << EOF > "$TOURNAMENT_FOLDER/index.html"
+          <!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>${TOURNAMENT_NAME} - Pairings & Standings</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet"> <link rel="stylesheet" href="../assets/style.css"> </head> <body> <header> <div class="container"> <h1 id="tournament-name">${TOURNAMENT_NAME}</h1> <p id="tournament-info"></p> <p style="margin-top: 5px;"><a href="../index.html" style="font-size: 0.9em;">← Back to Tournament List</a></p> </div> </header> <main> <div class="container"> <div class="controls"> <nav id="round-tabs"></nav> <div class="search-container"> <input type="text" id="search-input" placeholder="Search by Player Name..."> <button type="button" id="clear-search-btn" class="clear-search-button" title="Clear search">×</button> </div> </div> <div id="pairings-container"> <h2 id="current-round-title"></h2> <table id="pairings-table" class="results-table"> <thead> <tr> <th>Table</th> <th>Player 1</th> <th>Player 2</th> </tr> </thead> <tbody id="pairings-body"></tbody> </table> <p id="loading-message">Loading pairings...</p> <p id="no-search-results" style="display: none; text-align: center; margin-top: 15px; color: #6c757d;">No players found matching your search.</p> </div> <div id="standings-container" style="display: none; margin-top: 40px;"> <h2 id="standings-title">Swiss Standings</h2> <table id="standings-table" class="results-table"> <thead> <tr> <th>Rank</th> <th>Player</th> <th>Record</th> <th>OWP %</th> <th>OOWP %</th> </tr> </thead> <tbody id="standings-body"></tbody> </table> <p id="standings-loading-message" style="display: none; text-align: center; margin-top: 15px;">Calculating standings...</p> <p id="no-standings-message" style="display: none; text-align: center; margin-top: 15px;">Standings will be available after the final Swiss round concludes.</p> </div> </div> </main> <script src="../assets/script.js"></script> </body> </html>
+          EOF
+          echo "Generated $TOURNAMENT_FOLDER/index.html"
+
+          # Move the original TDF file into the data subfolder and rename it
           echo "Moving '$INPUT_FILE' to '$TOURNAMENT_FOLDER/data/tournament_data.xml'"
           mv "$INPUT_FILE" "$TOURNAMENT_FOLDER/data/tournament_data.xml"
           if [ $? -ne 0 ]; then echo "ERROR: Failed to move TDF file!"; exit 1; fi
 
-          # Output info for manifest update
-          echo "name=${TOURNAMENT_NAME}" >> $GITHUB_OUTPUT
-          echo "slug=${TOURNAMENT_FOLDER}" >> $GITHUB_OUTPUT
-          echo "date=${FORMATTED_DATE}" >> $GITHUB_OUTPUT
+          # Output the folder name and original tournament name for the commit message step
+          echo "tournament_folder=$TOURNAMENT_FOLDER" >> $GITHUB_OUTPUT
+          # Output the raw tournament name. GitHub Actions handles quoting/escaping for interpolation.
+          echo "tournament_name=${TOURNAMENT_NAME}" >> $GITHUB_OUTPUT
 
-      # Step 5: Update tournaments.json Manifest
-      - name: Update tournaments.json
+      # Step 5: Update Root Index File (Homepage)
+      # This step regenerates the main index.html file which acts as the homepage,
+      # listing all processed tournaments with links to their respective pages.
+      - name: Update Root Index File (Homepage)
+        env: # Define environment variable for use in python script
+           DISPLAY_NAME_VAR: ""
         run: |
-          MANIFEST_FILE="data/tournaments.json"
-          TEMP_MANIFEST="temp_manifest.json"
-          TOURNAMENT_NAME="${{ steps.process_tdf.outputs.name }}"
-          TOURNAMENT_SLUG="${{ steps.process_tdf.outputs.slug }}"
-          TOURNAMENT_DATE="${{ steps.process_tdf.outputs.date }}"
+          echo "Generating root index.html (Homepage)..."
+          # Start the HTML file structure for the homepage
+          cat << EOF > index.html
+          <!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>MilanoVGC - Tournament Results</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet"> <link rel="stylesheet" href="./assets/style.css"> </head> <body> <header class="main-header"> <div class="container"> <div class="logo">MilanoVGC</div> <nav> </nav> </div> </header>
+              <section id="hero">
+                  <div class="container">
+                      <h1>Tournament Pairings & Standings</h1>
+                      <p>Access live pairings, results, and final standings for MilanoVGC events.</p>
+                      <!-- Link to the Admin Upload page -->
+                      <p style="margin-top: 1.5rem; font-size: 0.9em; opacity: 0.8;"><a href="./admin_upload.html" style="color: var(--accent-color); border-bottom: 1px solid rgba(255, 255, 255, 0.5);">Admin Upload</a></p>
+                  </div>
+              </section>
+              <section id="tournament-list"> <div class="container"> <h2>Select Tournament</h2> <div class="tournament-grid">
+          EOF
 
-          # Create manifest directory if it doesn't exist
-          mkdir -p data
+          # Find all directories (potential tournament folders) excluding specific ones.
+          # Sort them reverse-alphabetically (-rz) so newer might appear first.
+          # Loop through each found directory.
+          find . -maxdepth 1 -mindepth 1 -type d ! -path './assets' ! -path './incoming' ! -path './.github' ! -path './.git' -print0 | sort -rz | while IFS= read -r -d $'\0' dir; do
+              FOLDER_NAME=$(basename "$dir")
 
-          # Create empty JSON array if manifest doesn't exist
-          if [ ! -f "$MANIFEST_FILE" ]; then
-            echo "[]" > "$MANIFEST_FILE"
-            echo "Created $MANIFEST_FILE."
-          fi
+              # Attempt to read the proper tournament name from the title tag of its index.html
+              # Use grep with -m 1 (max count 1) and -o (only matching). Redirect stderr to avoid errors if file not found.
+              # Fallback to the folder name (with hyphens replaced by spaces) if grep fails.
+              DISPLAY_NAME=$(grep -o -m 1 '<title>.* - Pairings & Standings</title>' "$FOLDER_NAME/index.html" 2>/dev/null | sed -e 's/<title>//' -e 's/ - Pairings & Standings<\/title>//' || echo "${FOLDER_NAME//-/ }")
+              # Ensure DISPLAY_NAME is not empty, fallback again just in case.
+              if [ -z "$DISPLAY_NAME" ]; then DISPLAY_NAME=${FOLDER_NAME//-/ }; fi
 
-          # Create JSON object for the current tournament
-          # Use jq for robust JSON creation, handling quotes and special chars
-          NEW_ENTRY=$(jq -n --arg name "$TOURNAMENT_NAME" --arg slug "$TOURNAMENT_SLUG" --arg date "$TOURNAMENT_DATE" \
-            '{name: $name, slug: $slug, date: $date}')
+              echo "Adding link for $FOLDER_NAME as '$DISPLAY_NAME'"
 
-          # Add the new entry and remove potential duplicates based on slug, then sort by date descending
-          # Use jq's 'map' and 'unique_by' for clean update
-          jq --argjson newEntry "$NEW_ENTRY" --arg slug "$TOURNAMENT_SLUG" \
-            '(. + [$newEntry]) | map(select(.slug != null)) | unique_by(.slug) | sort_by(.date) | reverse' \
-            "$MANIFEST_FILE" > "$TEMP_MANIFEST"
+              # Use Python's html.escape for robust HTML entity escaping of the display name.
+              # Export the shell variable so the python one-liner can read it.
+              export DISPLAY_NAME_VAR="$DISPLAY_NAME"
+              ESCAPED_DISPLAY_NAME=$(python -c "import html, os; print(html.escape(os.environ.get('DISPLAY_NAME_VAR', '')))")
 
-          # Replace old manifest with updated one
-          mv "$TEMP_MANIFEST" "$MANIFEST_FILE"
-          echo "Updated $MANIFEST_FILE"
-          cat $MANIFEST_FILE # Optional: show content in logs
+              # Append the tournament card link to the main index.html
+              cat << CARD_EOF >> index.html
+                          <a href="./$FOLDER_NAME/" class="tournament-card">
+                              ${ESCAPED_DISPLAY_NAME}
+                          </a>
+          CARD_EOF
+          done
+
+          # Finish the main index.html structure
+          cat << EOF >> index.html
+                      </div> </div> </section> <footer class="main-footer"> <div class="container"> <p>© $(date +%Y) MilanoVGC. All rights reserved.</p> </div> </footer> </body> </html>
+          EOF
+          echo "Generated root index.html (Homepage)"
 
       # Step 6: Commit and Push Changes
+      # Configures git user, adds all changes, commits, and pushes back to the repo.
       - name: Commit and Push Changes
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add . # Add the new tournament folder/XML and the updated manifest
+
+          # Add all changes (new tournament folder, updated root index.html, removed incoming file)
+          git add .
+
+          # Commit only if there are staged changes
           if ! git diff --staged --quiet; then
-            TOURNAMENT_NAME_FOR_MSG="${{ steps.process_tdf.outputs.name }}" # Get name from output
-            COMMIT_MSG="Automated: Add/Update tournament data for '$(echo "$TOURNAMENT_NAME_FOR_MSG" | sed "s/'/\\\'/g")'"
+            # Get the original tournament name from the previous step's output
+            ORIGINAL_NAME="${{ steps.process_file.outputs.tournament_name }}"
+            COMMIT_MSG="Automated: Process TDF upload"
+            # Append tournament name to commit message if available, escaping single quotes
+            if [ ! -z "$ORIGINAL_NAME" ]; then COMMIT_MSG="$COMMIT_MSG for tournament '$(echo "$ORIGINAL_NAME" | sed "s/'/\\\'/g")'"; fi
+            # Check if the homepage was also modified
+            if git diff --staged --quiet index.html; then : ; else COMMIT_MSG="$COMMIT_MSG, update homepage list"; fi
+
+            # Commit the changes
             git commit -m "$COMMIT_MSG"
+
+            # Push the commit to the branch that triggered the workflow
             git push
             echo "Changes committed and pushed."
           else
