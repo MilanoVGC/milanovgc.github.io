@@ -109,7 +109,11 @@ jobs:
                   <div class="container">
                       <div class="controls">
                           <nav id="round-tabs"></nav>
-                          <input type="text" id="search-input" placeholder="Search by Player Name...">
+                          <!-- Wrap input and button -->
+                          <div class="search-container">
+                              <input type="text" id="search-input" placeholder="Search by Player Name...">
+                              <button type="button" id="clear-search-btn" class="clear-search-button" title="Clear search">×</button> <!-- The '×' symbol -->
+                          </div>
                       </div>
                       <div id="pairings-container">
                           <h2 id="current-round-title"></h2>
