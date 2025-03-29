@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Configuration ---
     const xmlFilePath = 'data/tournament_data.xml';
     const refreshInterval = 15000;
-    const OWP_MINIMUM = 0.33; // Minimum opponent win percentage (33%)
+    const OWP_MINIMUM = 0.25; // Minimum opponent win percentage (33%)
 
     // --- Core Functions ---
 
