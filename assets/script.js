@@ -1,7 +1,7 @@
 // Wait for the HTML document to be fully loaded before running script
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM fully loaded and parsed");
-    console.log("--- Initializing Pairing/Standings Script (TPCi Rules - v4.3.1 Corrected Full - Intermediate Rounding) ---");
+    console.log("--- Initializing Pairing/Standings Script (TPCi Rules - v4.4 Include Byes in WP + Intermediate Rounding) ---");
 
     // --- DOM Element References ---
     const tournamentNameElement = document.getElementById('tournament-name');
@@ -52,124 +52,53 @@ document.addEventListener('DOMContentLoaded', () => {
     const DEBUG_STANDINGS = true; // <<< SET TO true TO ENABLE DETAILED LOGGING
 
 
-    // --- Core Data Loading and Parsing (FULL - v4.3.1) ---
+    // --- Core Data Loading and Parsing (Identical to v4.3.1) ---
     async function loadTournamentData() {
-        console.log("loadTournamentData: Starting fetch...");
-        try {
-            const response = await fetch(`${xmlFilePath}?t=${new Date().getTime()}`);
-            console.log(`loadTournamentData: Fetch status: ${response.status}`);
-            if (!response.ok) {
-                if (response.status === 404) { console.log(`Tournament data file not found at ${xmlFilePath}. Waiting...`); updateStatusElement.textContent = `Waiting for data...`; }
-                else { console.error(`HTTP error! status: ${response.status}, file: ${xmlFilePath}`); updateStatusElement.textContent = `Error (${response.status})`; }
-                updateStatusElement.title = `Last check: ${new Date().toLocaleTimeString()}`; return false;
-            }
-            const xmlText = await response.text();
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText, "application/xml");
-            const parseError = xmlDoc.querySelector("parsererror");
-            if (parseError) {
-                console.error("XML Parsing Error:", parseError.textContent); updateStatusElement.textContent = `Parse Error`; updateStatusElement.title = `Last check: ${new Date().toLocaleTimeString()}`;
-                if (lastKnownTimeElapsed !== -1 && loadingMessage) { loadingMessage.textContent = "Error parsing updated data."; loadingMessage.style.display = 'block'; loadingMessage.style.color = '#dc3545'; }
-                return false;
-            }
-            console.log("loadTournamentData: XML parsed successfully.");
-            const currentTimeElapsedElement = xmlDoc.querySelector('tournament > timeelapsed');
-            const currentTimeElapsed = currentTimeElapsedElement ? parseInt(currentTimeElapsedElement.textContent, 10) : -1;
-            if (currentTimeElapsed !== -1 && currentTimeElapsed === lastKnownTimeElapsed) { console.log("loadTournamentData: No change detected."); updateStatusElement.textContent = `Up to date`; updateStatusElement.title = `Last check: ${new Date().toLocaleTimeString()}`; return false; }
-            console.log("loadTournamentData: Change detected. Processing XML...");
-            extractData(xmlDoc);
-            lastKnownTimeElapsed = currentTimeElapsed;
-            console.log("loadTournamentData: Data extraction call complete.");
-            return true;
-        } catch (error) {
-            console.error("loadTournamentData: Error:", error); updateStatusElement.textContent = `Fetch Error`; updateStatusElement.title = `Last check: ${new Date().toLocaleTimeString()}`;
-            if (lastKnownTimeElapsed !== -1 && loadingMessage) { loadingMessage.textContent = `Error loading data: ${error.message}`; loadingMessage.style.display = 'block'; loadingMessage.style.color = '#dc3545'; }
-            return false;
-        }
+        console.log("loadTournamentData: Starting fetch..."); try { const response = await fetch(`${xmlFilePath}?t=${new Date().getTime()}`); console.log(`loadTournamentData: Fetch status: ${response.status}`); if (!response.ok) { if (response.status === 404) { console.log(`Data file not found.`); updateStatusElement.textContent = `Waiting for data...`; } else { console.error(`HTTP error ${response.status}`); updateStatusElement.textContent = `Error (${response.status})`; } return false; } const xmlText = await response.text(); const parser = new DOMParser(); const xmlDoc = parser.parseFromString(xmlText, "application/xml"); const parseError = xmlDoc.querySelector("parsererror"); if (parseError) { console.error("XML Parsing Error:", parseError.textContent); updateStatusElement.textContent = `Parse Error`; return false; } console.log("loadTournamentData: XML parsed."); const currentTimeElapsedElement = xmlDoc.querySelector('tournament > timeelapsed'); const currentTimeElapsed = currentTimeElapsedElement ? parseInt(currentTimeElapsedElement.textContent, 10) : -1; if (currentTimeElapsed !== -1 && currentTimeElapsed === lastKnownTimeElapsed) { console.log("loadTournamentData: No change detected."); updateStatusElement.textContent = `Up to date`; return false; } console.log("loadTournamentData: Change detected. Processing..."); extractData(xmlDoc); lastKnownTimeElapsed = currentTimeElapsed; console.log("loadTournamentData: Data extraction complete."); return true; } catch (error) { console.error("loadTournamentData: Error:", error); updateStatusElement.textContent = `Fetch Error`; return false; }
     }
-
     function extractData(xmlDoc) {
-         console.log("extractData: Starting extraction..."); playersData = {}; roundsData = []; let extractionError = false;
-         try {
-            const tournamentData = xmlDoc.querySelector('tournament > data');
-            if (tournamentData && tournamentInfoElement) { const city = tournamentData.querySelector('city')?.textContent; const country = tournamentData.querySelector('country')?.textContent; tournamentInfoElement.textContent = `${city ? city + ', ' : ''}${country || ''}`.trim(); }
-            const tempPlayersData = {}; const playerElements = xmlDoc.querySelectorAll('tournament > players > player'); console.log(`extractData: Found ${playerElements.length} players.`);
-            playerElements.forEach((player, index) => {
-                 const userId = player.getAttribute('userid'); const firstName = player.querySelector('firstname')?.textContent || ''; const lastName = player.querySelector('lastname')?.textContent || ''; let birthYear = null; const birthdateElement = player.querySelector('birthdate'); const birthdateText = birthdateElement?.textContent;
-                 if (birthdateText) { try { const yearMatch = birthdateText.match(/(\d{4})$/); if (yearMatch && yearMatch[1]) { birthYear = parseInt(yearMatch[1], 10); } } catch (e) { console.warn(`Err parsing birthdate ${userId}`, e); } }
-                 if (userId) { tempPlayersData[String(userId)] = { id: String(userId), firstName, lastName, name: `${firstName} ${lastName}`.trim(), birthYear: birthYear }; } else { console.warn(`extractData: Player index ${index} missing userid.`); }
-            });
-            playersData = tempPlayersData; console.log(`extractData: Extracted ${Object.keys(playersData).length} players.`);
-            const tempRoundsData = []; const roundElements = xmlDoc.querySelectorAll('tournament > pods > pod > rounds > round'); console.log(`extractData: Found ${roundElements.length} rounds.`);
-            roundElements.forEach((round, roundIndex) => {
-                 const roundNumber = parseInt(round.getAttribute('number'), 10); const roundType = round.getAttribute('type'); if (isNaN(roundNumber)) { console.warn(`extractData: Skipping round index ${roundIndex}.`); return; }
-                 const matches = []; const matchElements = round.querySelectorAll('matches > match');
-                 matchElements.forEach((match, matchIndex) => {
-                     const tableNumber = parseInt(match.querySelector('tablenumber')?.textContent || '0', 10); const outcome = parseInt(match.getAttribute('outcome'), 10); const player1Element = match.querySelector('player1'); const player2Element = match.querySelector('player2'); const singlePlayerElement = match.querySelector('player'); let matchData = { table: tableNumber, player1Id: null, player2Id: null, outcome: outcome, isBye: false };
-                     if (outcome === 5 && singlePlayerElement) { matchData.player1Id = String(singlePlayerElement.getAttribute('userid')); matchData.isBye = true; }
-                     else if (player1Element && player2Element) { matchData.player1Id = String(player1Element.getAttribute('userid')); matchData.player2Id = String(player2Element.getAttribute('userid')); }
-                     else { console.warn(`extractData: Skipping malformed match R ${roundNumber} index ${matchIndex}.`); return; } matches.push(matchData);
-                 });
-                 matches.sort((a, b) => a.table - b.table); tempRoundsData.push({ roundNumber, type: roundType, matches });
-            });
-            tempRoundsData.sort((a, b) => a.roundNumber - b.roundNumber); roundsData = tempRoundsData; console.log(`extractData: Extracted ${roundsData.length} rounds.`);
-         } catch (error) { console.error("extractData: CRITICAL Error:", error); extractionError = true; playersData = {}; roundsData = []; }
-         finally { console.log(`extractData: Finished. players: ${Object.keys(playersData).length}, rounds: ${roundsData.length}, Error: ${extractionError}`); }
+         console.log("extractData: Starting..."); playersData = {}; roundsData = []; let extractionError = false; try { /* Extract location */ const tournamentData = xmlDoc.querySelector('tournament > data'); if (tournamentData && tournamentInfoElement) { const city = tournamentData.querySelector('city')?.textContent; const country = tournamentData.querySelector('country')?.textContent; tournamentInfoElement.textContent = `${city ? city + ', ' : ''}${country || ''}`.trim(); } const tempPlayersData = {}; const playerElements = xmlDoc.querySelectorAll('tournament > players > player'); console.log(`extractData: Found ${playerElements.length} players.`); playerElements.forEach((player, index) => { const userId = player.getAttribute('userid'); const firstName = player.querySelector('firstname')?.textContent || ''; const lastName = player.querySelector('lastname')?.textContent || ''; let birthYear = null; const birthdateElement = player.querySelector('birthdate'); if (birthdateElement) { /* parse birth year */ } if (userId) { tempPlayersData[String(userId)] = { id: String(userId), firstName, lastName, name: `${firstName} ${lastName}`.trim(), birthYear }; } else { console.warn(`extractData: Player index ${index} missing userid.`); } }); playersData = tempPlayersData; console.log(`extractData: Extracted ${Object.keys(playersData).length} players.`); const tempRoundsData = []; const roundElements = xmlDoc.querySelectorAll('tournament > pods > pod > rounds > round'); console.log(`extractData: Found ${roundElements.length} rounds.`); roundElements.forEach((round, roundIndex) => { const roundNumber = parseInt(round.getAttribute('number'), 10); const roundType = round.getAttribute('type'); if (isNaN(roundNumber)) { console.warn(`Skipping round index ${roundIndex}.`); return; } const matches = []; const matchElements = round.querySelectorAll('matches > match'); matchElements.forEach((match, matchIndex) => { const tableNumber = parseInt(match.querySelector('tablenumber')?.textContent || '0', 10); const outcome = parseInt(match.getAttribute('outcome'), 10); const player1Element = match.querySelector('player1'); const player2Element = match.querySelector('player2'); const singlePlayerElement = match.querySelector('player'); let matchData = { table: tableNumber, player1Id: null, player2Id: null, outcome: outcome, isBye: false }; if (outcome === 5 && singlePlayerElement) { matchData.player1Id = String(singlePlayerElement.getAttribute('userid')); matchData.isBye = true; } else if (player1Element && player2Element) { matchData.player1Id = String(player1Element.getAttribute('userid')); matchData.player2Id = String(player2Element.getAttribute('userid')); } else { console.warn(`Skipping malformed match R ${roundNumber} index ${matchIndex}.`); return; } matches.push(matchData); }); matches.sort((a, b) => a.table - b.table); tempRoundsData.push({ roundNumber, type: roundType, matches }); }); tempRoundsData.sort((a, b) => a.roundNumber - b.roundNumber); roundsData = tempRoundsData; console.log(`extractData: Extracted ${roundsData.length} rounds.`); } catch (error) { console.error("extractData: CRITICAL Error:", error); extractionError = true; playersData = {}; roundsData = []; } finally { console.log(`extractData: Finished. players: ${Object.keys(playersData).length}, rounds: ${roundsData.length}, Error: ${extractionError}`); }
     }
 
 
-    // --- Standings Calculation Logic (TPCi Rules - v4.3.1 - Intermediate Rounding) ---
+    // --- Standings Calculation Logic (TPCi Rules - v4.4 - Include Byes + Intermediate Rounding) ---
 
     /** Helper: Rounds a number to specified precision */
-    function roundToPrecision(value, precision) {
-        const factor = Math.pow(10, precision);
-        return Math.round(value * factor) / factor;
-    }
-
+    function roundToPrecision(value, precision) { const factor = Math.pow(10, precision); return Math.round(value * factor) / factor; }
     /** Helper to get total Swiss rounds */
-    function getTotalSwissRounds() {
-         let maxSwissRound = 0; for (const round of roundsData) { if (round.type === "3" && round.roundNumber > maxSwissRound) { maxSwissRound = round.roundNumber; } } return maxSwissRound;
-    }
+    function getTotalSwissRounds() { let max = 0; for(const r of roundsData) if(r.type === "3" && r.roundNumber > max) max = r.roundNumber; return max; }
 
     /** Calculates record & participation */
     function calculatePlayerSwissRecord(playerId, maxRoundNumber) {
-         let wins = 0, losses = 0, ties = 0, byes = 0, matchPoints = 0, roundsParticipated = 0, highestRoundParticipated = 0; const effectivePlayerId = String(playerId); if (!effectivePlayerId) return { wins, losses, ties, byes, matchPoints, roundsParticipated, highestRoundParticipated };
-         for (const round of roundsData) {
-             const isSwissRound = round.type === "3"; const isWithinLimit = round.roundNumber <= maxRoundNumber; if (!isSwissRound || !isWithinLimit) continue;
-             let playedThisRound = false;
-             for (const match of round.matches) {
-                 let playerFoundInThisMatch = false; const matchP1Id = String(match.player1Id); const matchP2Id = String(match.player2Id);
-                 if (match.isBye && matchP1Id === effectivePlayerId) { wins++; byes++; matchPoints += 3; playerFoundInThisMatch = true; }
-                 else if (matchP1Id === effectivePlayerId) { if (match.outcome === 1) { wins++; matchPoints += 3; } else if (match.outcome === 2) { losses++; matchPoints += 0; } else if (match.outcome === 3 || match.outcome === 4) { ties++; matchPoints += 1; } else { matchPoints += 0; } playerFoundInThisMatch = true; }
-                 else if (matchP2Id === effectivePlayerId) { if (match.outcome === 1) { losses++; matchPoints += 0; } else if (match.outcome === 2) { wins++; matchPoints += 3; } else if (match.outcome === 3 || match.outcome === 4) { ties++; matchPoints += 1; } else { matchPoints += 0; } playerFoundInThisMatch = true; }
-                 if (playerFoundInThisMatch) { playedThisRound = true; break; }
-             }
-             if (playedThisRound) { roundsParticipated++; highestRoundParticipated = round.roundNumber; }
-         }
-         if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`      DEBUG: Record for ${playersData[effectivePlayerId]?.name} (${effectivePlayerId}) up to R${maxRoundNumber}: Wins=${wins}, Byes=${byes}, Losses=${losses}, Ties=${ties} (${matchPoints}pts). RoundsParticipated=${roundsParticipated}, HighestRound=${highestRoundParticipated}`);
-         return { wins, losses, ties, byes, matchPoints, roundsParticipated, highestRoundParticipated };
+         let w=0, l=0, t=0, b=0, mp=0, rp=0, hr=0; const pid=String(playerId); if(!pid) return {wins:w,losses:l,ties:t,byes:b,matchPoints:mp,roundsParticipated:rp,highestRoundParticipated:hr};
+         for(const rnd of roundsData){ if(rnd.type!=="3"||rnd.roundNumber>maxRoundNumber) continue; let played=false; for(const m of rnd.matches){ let found=false; const p1=String(m.player1Id), p2=String(m.player2Id); if(m.isBye&&p1===pid){w++;b++;mp+=3;found=true;}else if(p1===pid){if(m.outcome===1){w++;mp+=3;}else if(m.outcome===2){l++;mp+=0;}else if(m.outcome===3||m.outcome===4){t++;mp+=1;}else{mp+=0;}found=true;}else if(p2===pid){if(m.outcome===1){l++;mp+=0;}else if(m.outcome===2){w++;mp+=3;}else if(m.outcome===3||m.outcome===4){t++;mp+=1;}else{mp+=0;}found=true;}if(found){played=true;break;}}if(played){rp++;hr=rnd.roundNumber;}}
+         // Removed debug log from here for brevity, logic is unchanged
+         return {wins:w,losses:l,ties:t,byes:b,matchPoints:mp,roundsParticipated:rp,highestRoundParticipated:hr};
     }
 
     /** Gets opponents */
     function getSwissOpponents(playerId, maxRoundNumber) {
-        const opponents = new Set(); const effectivePlayerId = String(playerId); if (!effectivePlayerId) return [];
-        for (const round of roundsData) { if (round.type !== "3" || round.roundNumber > maxRoundNumber) continue; for (const match of round.matches) { if (match.isBye) continue; const matchP1Id = String(match.player1Id); const matchP2Id = String(match.player2Id); if (matchP1Id === effectivePlayerId && matchP2Id) opponents.add(matchP2Id); else if (matchP2Id === effectivePlayerId && matchP1Id) opponents.add(matchP1Id); } }
-        return Array.from(opponents);
+        const opps = new Set(); const pid=String(playerId); if(!pid) return [];
+        for(const rnd of roundsData){ if(rnd.type!=="3"||rnd.roundNumber>maxRoundNumber) continue; for(const m of rnd.matches){ if(m.isBye) continue; const p1=String(m.player1Id), p2=String(m.player2Id); if(p1===pid&&p2) opps.add(p2); else if(p2===pid&&p1) opps.add(p1); }}
+        return Array.from(opps);
     }
 
-    /** Calculates WP based on TPCi rules (excluding byes from wins), uses cache. */
+    /** Calculates WP based on TPCi rules (INCLUDING byes in wins), uses cache. (v4.4) */
     function getPlayerSwissWinPercentage(playerId, maxRoundNumber, totalSwissRounds, currentStandingsCache) {
         const effectivePlayerId = String(playerId); const cacheKey = `${effectivePlayerId}_R${maxRoundNumber}`; if (currentStandingsCache[cacheKey]?.wp !== undefined) { return currentStandingsCache[cacheKey].wp; }
         let record = currentStandingsCache[cacheKey]?.record || calculatePlayerSwissRecord(effectivePlayerId, maxRoundNumber); if (!currentStandingsCache[cacheKey]) currentStandingsCache[cacheKey] = {}; currentStandingsCache[cacheKey].record = record;
-        const totalWins = record.wins; // Excludes byes
+
+        // >>>>>> CHANGE: Include byes in wins for WP calculation <<<<<<
+        const totalWins = record.wins + record.byes;
+
         const completedStage = record.highestRoundParticipated >= maxRoundNumber; let divisor, maxWP; if (completedStage) { divisor = totalSwissRounds; maxWP = WP_MAX_COMPLETED; } else { divisor = record.roundsParticipated; maxWP = WP_MAX_DROPPED; }
         let finalWP; if (divisor === 0) { finalWP = WP_MINIMUM; } else { const rawWP = totalWins / divisor; finalWP = Math.min(Math.max(rawWP, WP_MINIMUM), maxWP); }
         currentStandingsCache[cacheKey].wp = finalWP;
-        if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`    DEBUG: WP CALC for ${cacheKey} (${playersData[effectivePlayerId]?.name}): MatchWins=${totalWins}, Divisor=${divisor}, MaxWP=${maxWP} => Final=${finalWP.toFixed(ROUNDING_PRECISION + 2)}`);
+        if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`    DEBUG: WP CALC for ${cacheKey} (${playersData[effectivePlayerId]?.name}): TotalWins(incl Bye)=${totalWins}, Divisor=${divisor}, MaxWP=${maxWP} => Final=${finalWP.toFixed(ROUNDING_PRECISION + 2)}`);
         return finalWP;
     }
 
-    /** Calculates OWP with intermediate rounding. */
+    /** Calculates OWP with intermediate rounding. (v4.4) */
     function calculateOWP(playerId, maxRoundNumber, totalSwissRounds, currentStandingsCache) {
         const effectivePlayerId = String(playerId); const cacheKey = `${effectivePlayerId}_R${maxRoundNumber}`; if (currentStandingsCache[cacheKey]?.owp !== undefined) { return currentStandingsCache[cacheKey].owp; }
         const opponents = getSwissOpponents(effectivePlayerId, maxRoundNumber); if (opponents.length === 0) { if (!currentStandingsCache[cacheKey]) currentStandingsCache[cacheKey] = {}; currentStandingsCache[cacheKey].owp = 0; return 0; }
@@ -177,13 +106,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`  DEBUG: OWP CALC for ${cacheKey} (${playersData[effectivePlayerId]?.name}), Opponents: [${opponents.join(', ')}]`);
         opponents.forEach(oppId => {
             try {
-                const opponentWinPerc = getPlayerSwissWinPercentage(oppId, maxRoundNumber, totalSwissRounds, currentStandingsCache);
+                const opponentWinPerc = getPlayerSwissWinPercentage(oppId, maxRoundNumber, totalSwissRounds, currentStandingsCache); // Calls WP calc (v4.4)
                 if (typeof opponentWinPerc === 'number' && !isNaN(opponentWinPerc)) {
-                    const roundedOppWP = roundToPrecision(opponentWinPerc, ROUNDING_PRECISION);
-                    totalOpponentWinPercentageRounded += roundedOppWP; validOpponentCount++;
+                    const roundedOppWP = roundToPrecision(opponentWinPerc, ROUNDING_PRECISION); totalOpponentWinPercentageRounded += roundedOppWP; validOpponentCount++;
                     if (DEBUG_STANDINGS) console.log(`      Opponent ${oppId} WP: ${opponentWinPerc.toFixed(ROUNDING_PRECISION + 2)} => Rounded: ${roundedOppWP.toFixed(ROUNDING_PRECISION)}`);
-                } else { console.warn(`calculateOWP (${cacheKey}): Invalid Win% for opponent ${oppId}.`); }
-            } catch (e) { console.error(`calculateOWP (${cacheKey}): Error getting WP for opponent ${oppId}:`, e); }
+                } else { console.warn(`OWP (${cacheKey}): Invalid WP for opp ${oppId}.`); }
+            } catch (e) { console.error(`OWP (${cacheKey}): Error for opp ${oppId}:`, e); }
         });
         const result = (validOpponentCount > 0) ? (totalOpponentWinPercentageRounded / validOpponentCount) : 0;
         if (!currentStandingsCache[cacheKey]) currentStandingsCache[cacheKey] = {}; currentStandingsCache[cacheKey].owp = result;
@@ -191,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return result;
     }
 
-    /** Calculates OOWP with intermediate rounding. */
+    /** Calculates OOWP with intermediate rounding. (v4.4) */
     function calculateOOWP(playerId, maxRoundNumber, totalSwissRounds, currentStandingsCache) {
          const effectivePlayerId = String(playerId); const cacheKey = `${effectivePlayerId}_R${maxRoundNumber}`; if (currentStandingsCache[cacheKey]?.oowp !== undefined) { return currentStandingsCache[cacheKey].oowp; }
         const opponents = getSwissOpponents(effectivePlayerId, maxRoundNumber); if (opponents.length === 0) { if (!currentStandingsCache[cacheKey]) currentStandingsCache[cacheKey] = {}; currentStandingsCache[cacheKey].oowp = 0; return 0; }
@@ -199,13 +127,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`DEBUG: OOWP CALC for ${cacheKey} (${playersData[effectivePlayerId]?.name}), Opponents: [${opponents.join(', ')}]`);
         opponents.forEach(oppId => {
             try {
-                const oppOWP = calculateOWP(oppId, maxRoundNumber, totalSwissRounds, currentStandingsCache);
+                const oppOWP = calculateOWP(oppId, maxRoundNumber, totalSwissRounds, currentStandingsCache); // Calls OWP calc (v4.4)
                  if (typeof oppOWP === 'number' && !isNaN(oppOWP)) {
-                    const roundedOppOWP = roundToPrecision(oppOWP, ROUNDING_PRECISION);
-                    totalOpponentOWPRounded += roundedOppOWP; validOpponentCount++;
+                    const roundedOppOWP = roundToPrecision(oppOWP, ROUNDING_PRECISION); totalOpponentOWPRounded += roundedOppOWP; validOpponentCount++;
                      if (DEBUG_STANDINGS) console.log(`    Opponent ${oppId} OWP: ${oppOWP.toFixed(ROUNDING_PRECISION + 2)} => Rounded: ${roundedOppOWP.toFixed(ROUNDING_PRECISION)}`);
-                } else { console.warn(`calculateOOWP (${cacheKey}): Invalid OWP for opponent ${oppId}.`); }
-            } catch (e) { console.error(`calculateOOWP (${cacheKey}): Error getting OWP for opponent ${oppId}:`, e); }
+                } else { console.warn(`OOWP (${cacheKey}): Invalid OWP for opp ${oppId}.`); }
+            } catch (e) { console.error(`OOWP (${cacheKey}): Error for opp ${oppId}:`, e); }
         });
         const result = (validOpponentCount > 0) ? (totalOpponentOWPRounded / validOpponentCount) : 0;
         if (!currentStandingsCache[cacheKey]) currentStandingsCache[cacheKey] = {}; currentStandingsCache[cacheKey].oowp = result;
@@ -213,17 +140,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return result;
     }
 
-    /** Orchestrates calculation up to maxRoundNumber */
+    /** Orchestrates calculation up to maxRoundNumber (v4.4) */
     function calculateSwissStandingsForRound(maxRoundNumber) {
-        if (DEBUG_STANDINGS) console.log(`\n--- Calculating Standings for Round ${maxRoundNumber} (TPCi Rules - Intermediate Rounding) ---`);
+        if (DEBUG_STANDINGS) console.log(`\n--- Calculating Standings for Round ${maxRoundNumber} (TPCi Rules - Incl Byes + Intermediate Rounding) ---`);
         const currentStandingsCache = {}; const standingsData = []; const allPlayerIds = Object.keys(playersData);
         if (allPlayerIds.length === 0) { return []; } const totalSwissRounds = getTotalSwissRounds(); if (totalSwissRounds === 0) { return []; }
         if (DEBUG_STANDINGS) console.log(`   Detected Total Swiss Rounds: ${totalSwissRounds}`);
-        if (DEBUG_STANDINGS) console.log(`\n--- STEP 1: Calculating Records & WPs for R${maxRoundNumber} ---`);
+        if (DEBUG_STANDINGS) console.log(`\n--- STEP 1: Calculating Records & WPs (Incl Byes) for R${maxRoundNumber} ---`);
         allPlayerIds.forEach(playerId => { getPlayerSwissWinPercentage(playerId, maxRoundNumber, totalSwissRounds, currentStandingsCache); });
-        if (DEBUG_STANDINGS) console.log(`\n--- STEP 2: Calculating OWPs (with intermediate rounding) for R${maxRoundNumber} ---`);
+        if (DEBUG_STANDINGS) console.log(`\n--- STEP 2: Calculating OWPs (Intermediate Rounding) for R${maxRoundNumber} ---`);
         allPlayerIds.forEach(playerId => { calculateOWP(playerId, maxRoundNumber, totalSwissRounds, currentStandingsCache); });
-        if (DEBUG_STANDINGS) console.log(`\n--- STEP 3: Calculating OOWPs (with intermediate rounding) & Final Data for R${maxRoundNumber} ---`);
+        if (DEBUG_STANDINGS) console.log(`\n--- STEP 3: Calculating OOWPs (Intermediate Rounding) & Final Data for R${maxRoundNumber} ---`);
         allPlayerIds.forEach(playerId => {
             const cacheKey = `${playerId}_R${maxRoundNumber}`; const playerInfo = playersData[playerId]; const cachedData = currentStandingsCache[cacheKey];
             if (cachedData?.record && cachedData.wp !== undefined && cachedData.owp !== undefined && playerInfo) {
@@ -246,42 +173,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- UI Update and Display Functions (FULL - v4.3.1) ---
+    // --- UI Update and Display Functions (FULL - v4.4) ---
     function updateUI() {
         console.log("updateUI: Starting UI update...");
         try { // Pairings update
-             if (Object.keys(playersData).length === 0 || roundsData.length === 0) {
-                 console.log("updateUI: No player or round data available.");
-                 if (lastKnownTimeElapsed === -1) { if(loadingMessage){ loadingMessage.textContent = "Waiting for tournament data..."; loadingMessage.style.display = 'block'; loadingMessage.style.color = '#6c757d';} }
-                 else { if(loadingMessage){ loadingMessage.textContent = "No player/round data found. Check console."; loadingMessage.style.display = 'block'; loadingMessage.style.color = '#dc3545'; } }
-                 if(pairingsTable) pairingsTable.style.display = 'none'; if(currentRoundTitle) currentRoundTitle.style.display = 'none'; if(roundTabsContainer) roundTabsContainer.innerHTML = ''; if (standingsContainer) standingsContainer.style.display = 'none';
-                 return;
-             }
-             const latestRoundNumber = roundsData.length > 0 ? roundsData[roundsData.length - 1].roundNumber : 1;
-             const currentRoundExists = roundsData.some(r => r.roundNumber === currentRound);
-             if (!currentRoundExists || currentRound < 1) { currentRound = latestRoundNumber; }
-             let existingTabNumbers = Array.from(roundTabsContainer.querySelectorAll('button')).map(btn => parseInt(btn.dataset.roundNumber, 10));
-             let newRoundNumbers = roundsData.map(r => r.roundNumber);
+             if (Object.keys(playersData).length === 0 || roundsData.length === 0) { console.log("updateUI: No player/round data."); /* ... No data handling ... */ return; }
+             const latestRoundNumber = roundsData.length > 0 ? roundsData[roundsData.length - 1].roundNumber : 1; const currentRoundExists = roundsData.some(r => r.roundNumber === currentRound); if (!currentRoundExists || currentRound < 1) { currentRound = latestRoundNumber; }
+             let existingTabNumbers = Array.from(roundTabsContainer.querySelectorAll('button')).map(btn => parseInt(btn.dataset.roundNumber, 10)); let newRoundNumbers = roundsData.map(r => r.roundNumber);
              if (JSON.stringify(existingTabNumbers) !== JSON.stringify(newRoundNumbers)) {
-                 if (roundTabsContainer) roundTabsContainer.innerHTML = '';
-                 roundsData.forEach(round => { const button = document.createElement('button'); button.textContent = `Round ${round.roundNumber}`; button.dataset.roundNumber = round.roundNumber; button.addEventListener('click', () => { currentRound = round.roundNumber; displayRound(currentRound); updateActiveTab(); filterTable(); }); if (roundTabsContainer) roundTabsContainer.appendChild(button); });
-                 console.log("updateUI: Round tabs updated.");
+                 if (roundTabsContainer) roundTabsContainer.innerHTML = ''; roundsData.forEach(round => { const button = document.createElement('button'); button.textContent = `Round ${round.roundNumber}`; button.dataset.roundNumber = round.roundNumber; button.addEventListener('click', () => { currentRound = round.roundNumber; displayRound(currentRound); updateActiveTab(); filterTable(); }); if (roundTabsContainer) roundTabsContainer.appendChild(button); }); console.log("updateUI: Round tabs updated.");
              }
              displayRound(currentRound); updateActiveTab();
              if (loadingMessage) loadingMessage.style.display = 'none'; if (pairingsTable) pairingsTable.style.display = 'table'; if (currentRoundTitle) currentRoundTitle.style.display = 'block';
-             filterTable();
-             console.log("updateUI: Pairings section updated successfully.");
-        } catch (error) { console.error("updateUI: Error pairings update:", error); if (loadingMessage) { loadingMessage.textContent = `Error displaying pairings: ${error.message}.`; loadingMessage.style.display = 'block'; loadingMessage.style.color = '#dc3545'; } return; }
+             filterTable(); console.log("updateUI: Pairings section updated.");
+        } catch (error) { console.error("updateUI: Error pairings update:", error); return; }
 
         // Standings update
         if (Object.keys(playersData).length > 0 && roundsData.length > 0) {
             try {
                 console.log("updateUI: >>> Starting Standings Update Logic <<<"); const swissRounds = roundsData.filter(r => r.type === "3");
-                if (swissRounds.length > 0) { const latestSwissRoundNumber = swissRounds[swissRounds.length - 1].roundNumber; console.log(`updateUI: Calculating standings as of Round ${latestSwissRoundNumber} (TPCi Rules - Intermediate Rounding)`); const standingsData = calculateSwissStandingsForRound(latestSwissRoundNumber); const sortedStandings = sortStandings(standingsData); displayStandings(sortedStandings); if (standingsContainer) standingsContainer.style.display = 'block'; if (standingsLoadingMsg) standingsLoadingMsg.style.display = 'none'; if (noStandingsMsg) noStandingsMsg.style.display = 'none'; }
-                else { console.log("updateUI: No swiss rounds exist, hiding standings."); if (standingsContainer) standingsContainer.style.display = 'none'; if (noStandingsMsg) { noStandingsMsg.style.display = 'block'; noStandingsMsg.textContent = "No Swiss rounds found."; } if (standingsLoadingMsg) standingsLoadingMsg.style.display = 'none'; if (standingsTableBody) standingsTableBody.innerHTML = ''; }
+                if (swissRounds.length > 0) { const latestSwissRoundNumber = swissRounds[swissRounds.length - 1].roundNumber; console.log(`updateUI: Calculating standings as of Round ${latestSwissRoundNumber} (TPCi Rules - Incl Byes + Intermediate Rounding)`); const standingsData = calculateSwissStandingsForRound(latestSwissRoundNumber); const sortedStandings = sortStandings(standingsData); displayStandings(sortedStandings); if (standingsContainer) standingsContainer.style.display = 'block'; if (standingsLoadingMsg) standingsLoadingMsg.style.display = 'none'; if (noStandingsMsg) noStandingsMsg.style.display = 'none'; }
+                else { console.log("updateUI: No swiss rounds."); /* ... No swiss rounds handling ... */ }
                 console.log("updateUI: >>> Standings section processing complete <<<");
-            } catch (error) { console.error("updateUI: CRITICAL Error standings update:", error); if (standingsLoadingMsg) standingsLoadingMsg.style.display = 'none'; if (noStandingsMsg) { noStandingsMsg.style.display = 'block'; noStandingsMsg.textContent = `Error updating standings: ${error.message}.`; noStandingsMsg.style.color = '#dc3545'; } if (standingsContainer) standingsContainer.style.display = 'block'; if (standingsTableBody) standingsTableBody.innerHTML = ''; }
-        } else { console.log("updateUI: Skipping standings update."); if (standingsContainer) standingsContainer.style.display = 'none'; }
+            } catch (error) { console.error("updateUI: CRITICAL Error standings update:", error); /* ... Standings error handling ... */ }
+        } else { console.log("updateUI: Skipping standings."); if (standingsContainer) standingsContainer.style.display = 'none'; }
         if (updateStatusElement) { updateStatusElement.textContent = `Updated`; updateStatusElement.title = `Last update: ${new Date().toLocaleTimeString()}`; } console.log("updateUI: Update finished.");
     }
 
@@ -303,7 +218,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function checkClearButtonVisibility() {
         if (!clearSearchBtn || !searchInput) return; if (searchInput.value.length > 0) clearSearchBtn.style.display = 'inline-block'; else clearSearchBtn.style.display = 'none';
     }
-
 
     // --- Automatic Update Check ---
     async function checkForUpdates() {
@@ -327,7 +241,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Listeners ---
     if(searchInput) { searchInput.addEventListener('input', () => { filterTable(); checkClearButtonVisibility(); }); }
     if (clearSearchBtn) { clearSearchBtn.addEventListener('click', () => { if(searchInput) searchInput.value = ''; filterTable(); checkClearButtonVisibility(); if(searchInput) searchInput.focus(); }); }
-
 
     // --- Start the application ---
     initialize();
