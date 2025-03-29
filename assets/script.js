@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pairingsTableBody = document.getElementById('pairings-body');
     const pairingsTable = document.getElementById('pairings-table');
     const searchInput = document.getElementById('search-input');
+    const clearSearchBtn = document.getElementById('clear-search-btn'); // Reference for clear button
     const currentRoundTitle = document.getElementById('current-round-title');
     const loadingMessage = document.getElementById('loading-message');
 
@@ -199,8 +200,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentRound = round.roundNumber;
                     displayRound(currentRound);
                     updateActiveTab();
-                    searchInput.value = '';
-                    filterTable();
+                    // searchInput.value = ''; // <<-- REMOVED Line to keep search term
+                    filterTable(); // Re-apply filter on existing term
                 });
                 roundTabsContainer.appendChild(button);
             });
@@ -211,52 +212,45 @@ document.addEventListener('DOMContentLoaded', () => {
         loadingMessage.style.display = 'none';
         pairingsTable.style.display = 'table';
         currentRoundTitle.style.display = 'block';
-        filterTable();
+        filterTable(); // Apply filter on UI update
         updateStatusElement.textContent = `Updated`;
         updateStatusElement.title = `Last update: ${new Date().toLocaleTimeString()}`;
     }
 
-    // --- NEW Helper Function to Calculate Score ---
     function getPlayerScoreBeforeRound(playerId, targetRoundNumber) {
         let wins = 0;
         let losses = 0;
 
-        if (!playerId) return { wins, losses }; // Handle cases where player ID might be null/undefined
+        if (!playerId) return { wins, losses };
 
         for (const pastRound of roundsData) {
-            // Only count rounds *before* the target round
             if (pastRound.roundNumber >= targetRoundNumber) {
                 continue;
             }
 
             for (const match of pastRound.matches) {
-                // Check BYE first
                 if (match.isBye && match.player1Id === playerId) {
                     wins++;
-                    continue; // Player found, move to next match
+                    continue;
                 }
 
-                // Check normal matches
                 if (match.player1Id === playerId) {
-                    if (match.outcome === 1) wins++;        // P1 Wins
-                    else if (match.outcome === 2) losses++; // P2 Wins (P1 loses)
-                    else if (match.outcome === 4) losses++; // Double Loss
-                    // Outcome 3 (Draw) ignored for W-L
-                    continue; // Player found
+                    if (match.outcome === 1) wins++;
+                    else if (match.outcome === 2) losses++;
+                    else if (match.outcome === 4) losses++;
+                    continue;
                 }
 
                 if (match.player2Id === playerId) {
-                    if (match.outcome === 2) wins++;        // P2 Wins
-                    else if (match.outcome === 1) losses++; // P1 Wins (P2 loses)
-                    else if (match.outcome === 4) losses++; // Double Loss
-                    // Outcome 3 (Draw) ignored for W-L
-                    continue; // Player found
+                    if (match.outcome === 2) wins++;
+                    else if (match.outcome === 1) losses++;
+                    else if (match.outcome === 4) losses++;
+                    continue;
                 }
             }
         }
         return { wins, losses };
     }
-    // --- END NEW Helper Function ---
 
     function displayRound(roundNumber) {
         const round = roundsData.find(r => r.roundNumber === roundNumber);
@@ -268,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         currentRoundTitle.textContent = `Round ${roundNumber} Pairings`;
-        pairingsTableBody.innerHTML = ''; // Clear previous pairings
+        pairingsTableBody.innerHTML = '';
 
         if (round.matches.length === 0) {
              pairingsTableBody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #6c757d;">No matches reported for this round yet.</td></tr>';
@@ -278,46 +272,34 @@ document.addEventListener('DOMContentLoaded', () => {
         round.matches.forEach(match => {
             const row = pairingsTableBody.insertRow();
 
-            // --- Get Player Info and Score ---
             const player1Info = playersData[match.player1Id] || { name: `Unknown (${match.player1Id})` };
             const player2Info = match.isBye ? { name: "BYE" } : (playersData[match.player2Id] || { name: `Unknown (${match.player2Id})` });
 
-            // Calculate scores *before* this round
             const scoreP1 = getPlayerScoreBeforeRound(match.player1Id, roundNumber);
-            const scoreP2 = match.isBye ? { wins: 0, losses: 0 } : getPlayerScoreBeforeRound(match.player2Id, roundNumber); // BYE doesn't have a score
+            const scoreP2 = match.isBye ? { wins: 0, losses: 0 } : getPlayerScoreBeforeRound(match.player2Id, roundNumber);
 
-            // Format display names with scores
             const player1DisplayText = `${player1Info.name} (${scoreP1.wins}-${scoreP1.losses})`;
             const player2DisplayText = match.isBye ? player2Info.name : `${player2Info.name} (${scoreP2.wins}-${scoreP2.losses})`;
 
-            // Store base names for searching
             row.dataset.player1Name = player1Info.name.toLowerCase();
             row.dataset.player2Name = match.isBye ? 'bye' : player2Info.name.toLowerCase();
 
-            // --- Table Cell ---
             const cellTable = row.insertCell();
-            cellTable.textContent = match.table === 0 ? "N/A" : match.table; // Display N/A for BYE table too
+            cellTable.textContent = match.table === 0 ? "N/A" : match.table;
 
-            // --- Player 1 Cell ---
             const cellP1 = row.insertCell();
-             // NOTE: Winner styling based on current match.outcome, score is from previous rounds.
-            if (match.outcome === 1) { // P1 won this specific match
+            if (match.outcome === 1) {
                 cellP1.innerHTML = `<span class="winner">${player1DisplayText}</span>`;
             } else {
-                // Check if it's a bye - Player 1 gets the bye point implicitly handled by score func.
-                // No special styling needed here unless you want to mark BYE players.
                 cellP1.textContent = player1DisplayText;
             }
 
-
-            // --- Player 2 Cell ---
             const cellP2 = row.insertCell();
              if (match.isBye) {
-                 cellP2.textContent = player2DisplayText; // Should just be "BYE"
-                 cellP2.style.color = '#6c757d'; // Keep BYE greyed out
+                 cellP2.textContent = player2DisplayText;
+                 cellP2.style.color = '#6c757d';
              } else {
-                // Player 2 is a real player
-                if (match.outcome === 2) { // P2 won this specific match
+                if (match.outcome === 2) {
                     cellP2.innerHTML = `<span class="winner">${player2DisplayText}</span>`;
                 } else {
                     cellP2.textContent = player2DisplayText;
@@ -366,6 +348,16 @@ document.addEventListener('DOMContentLoaded', () => {
          }
     }
 
+    // Helper Function for Clear Button Visibility
+    function checkClearButtonVisibility() {
+        if (!clearSearchBtn) return; // Guard if button doesn't exist
+        if (searchInput.value.length > 0) {
+            clearSearchBtn.style.display = 'inline-block'; // Show button
+        } else {
+            clearSearchBtn.style.display = 'none'; // Hide button
+        }
+    }
+
     async function checkForUpdates() {
         updateStatusElement.textContent = `Checking...`;
         updateStatusElement.title = `Checking at: ${new Date().toLocaleTimeString()}`;
@@ -378,8 +370,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function initialize() {
         updateStatusElement.textContent = `Loading...`;
-        await loadTournamentData(); // Wait for first load attempt
-        updateUI(); // Update UI based on whatever data we got (or didn't get)
+        await loadTournamentData();
+        updateUI();
+
+        // Initial state for clear button
+        checkClearButtonVisibility();
 
         if (updateIntervalId) clearInterval(updateIntervalId);
         updateIntervalId = setInterval(checkForUpdates, refreshInterval);
@@ -387,9 +382,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Event Listeners ---
-    searchInput.addEventListener('input', filterTable);
+    searchInput.addEventListener('input', () => {
+        filterTable();
+        checkClearButtonVisibility(); // Check visibility on input change
+    });
+
+    // Add listener for the clear button
+    if (clearSearchBtn) {
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = ''; // Clear the input
+            filterTable();          // Re-apply filter (show all rows)
+            checkClearButtonVisibility(); // Hide the button
+            searchInput.focus();      // Optional: put focus back in search bar
+        });
+    }
 
     // --- Initialisation ---
-    initialize();
+    initialize(); // Start the process
 
 }); // End of DOMContentLoaded
