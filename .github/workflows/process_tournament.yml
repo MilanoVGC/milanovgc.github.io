@@ -25,10 +25,9 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          # Fetch all history so we can update the root index based on folders
           fetch-depth: 0
 
-      # Step 2: Install xmlstarlet (for parsing TDF)
+      # Step 2: Install xmlstarlet
       - name: Install xmlstarlet
         run: |
           sudo apt-get update
@@ -38,7 +37,6 @@ jobs:
       - name: Find Uploaded TDF
         id: find_file
         run: |
-          # Find the first .tdf file in the incoming directory
           TDF_FILE=$(find incoming -name '*.tdf' -print -quit)
           if [ -z "$TDF_FILE" ]; then
             echo "No TDF file found in incoming/. Exiting."
@@ -47,40 +45,26 @@ jobs:
           echo "Found TDF file: $TDF_FILE"
           echo "file_path=$TDF_FILE" >> $GITHUB_OUTPUT
 
-      # Step 4: Process Tournament File (Create Folder, HTML, Move XML)
+      # Step 4: Process Tournament File
       - name: Process Tournament File
         id: process_file
         run: |
           INPUT_FILE="${{ steps.find_file.outputs.file_path }}"
           echo "Processing file: $INPUT_FILE"
-
-          # Extract tournament name from XML, fallback to filename
           TOURNAMENT_NAME=$(xmlstarlet sel -t -v '/tournament/data/name' "$INPUT_FILE" 2>/dev/null)
           if [ -z "$TOURNAMENT_NAME" ]; then
-            echo "Could not extract tournament name from $INPUT_FILE. Using filename as fallback."
+            echo "Could not extract tournament name. Using filename fallback."
             BASENAME=$(basename "$INPUT_FILE" .tdf)
-            # Replace underscores with spaces for display name
             TOURNAMENT_NAME=${BASENAME//_/ }
           fi
           echo "Original Tournament Name: $TOURNAMENT_NAME"
-
-          # Sanitize name for folder creation (lowercase, alphanumeric, hyphens)
           SANITIZED_NAME=$(echo "$TOURNAMENT_NAME" | tr '[:upper:]' '[:lower:]' | sed -e 's/[^a-z0-9]+/-/g' -e 's/^-*//' -e 's/-*$//')
-          if [ -z "$SANITIZED_NAME" ]; then
-            echo "Sanitized name is empty. Using 'unnamed-tournament-$(date +%s)'."
-            SANITIZED_NAME="unnamed-tournament-$(date +%s)"
-          fi
-          # Append date to sanitized name to ensure uniqueness if needed, or keep simple if names are distinct
-          # Example: SANITIZED_NAME="$SANITIZED_NAME-$(date +%Y%m%d)"
+          if [ -z "$SANITIZED_NAME" ]; then SANITIZED_NAME="unnamed-tournament-$(date +%s)"; fi
           TOURNAMENT_FOLDER="$SANITIZED_NAME"
           echo "Target Folder: $TOURNAMENT_FOLDER"
-
-          # Create tournament folder and data subfolder
           mkdir -p "$TOURNAMENT_FOLDER/data"
 
-          # Generate the index.html for the tournament
-          # Use double quotes for variable expansion ($TOURNAMENT_NAME)
-          # Escape backticks ` and dollar signs $ if needed within the HEREDOC literal
+          # Generate index.html with class="results-table" added
           cat << EOF > "$TOURNAMENT_FOLDER/index.html"
           <!DOCTYPE html>
           <html lang="en">
@@ -91,150 +75,41 @@ jobs:
               <link rel="preconnect" href="https://fonts.googleapis.com">
               <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
               <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-              <!-- Link CSS relative to the root -->
               <link rel="stylesheet" href="../assets/style.css">
           </head>
           <body>
-              <header>
-                  <div class="container">
-                       <h1 id="tournament-name">${TOURNAMENT_NAME}</h1>
-                       <p id="tournament-info"></p> <!-- Populated by JS -->
-                       <p style="margin-top: 5px;"><a href="../index.html" style="font-size: 0.9em;">← Back to Tournament List</a></p>
-                       <!-- Update status span added by JS -->
-                  </div>
-              </header>
-              <main>
-                  <div class="container">
-                      <div class="controls">
-                          <nav id="round-tabs"></nav>
-                          <div class="search-container">
-                              <input type="text" id="search-input" placeholder="Search by Player Name...">
-                              <button type="button" id="clear-search-btn" class="clear-search-button" title="Clear search">×</button>
-                          </div>
-                      </div>
-                      <div id="pairings-container">
-                          <h2 id="current-round-title"></h2>
-                          <!-- ****** ADDED class="results-table" ****** -->
-                          <table id="pairings-table" class="results-table">
-                              <thead>
-                                  <tr>
-                                      <th>Table</th>
-                                      <th>Player 1</th>
-                                      <th>Player 2</th>
-                                  </tr>
-                              </thead>
-                              <tbody id="pairings-body"></tbody>
-                          </table>
-                          <p id="loading-message">Loading pairings...</p>
-                          <p id="no-search-results" style="display: none; text-align: center; margin-top: 15px; color: #6c757d;">No players found matching your search.</p>
-                      </div>
-
-                      <!-- Standings Section Placeholder -->
-                      <div id="standings-container" style="display: none; margin-top: 40px;">
-                           <h2 id="standings-title">Swiss Standings</h2>
-                           <!-- ****** ADDED class="results-table" ****** -->
-                           <table id="standings-table" class="results-table">
-                               <thead>
-                                   <tr>
-                                       <th>Rank</th>
-                                       <th>Player</th>
-                                       <th>Record</th>
-                                       <th>OWP %</th>
-                                       <th>OOWP %</th>
-                                   </tr>
-                               </thead>
-                               <tbody id="standings-body">
-                                   <!-- Standings rows will be inserted here by JS -->
-                               </tbody>
-                           </table>
-                           <p id="standings-loading-message" style="display: none; text-align: center; margin-top: 15px; color: #6c757d;">Calculating standings...</p>
-                           <p id="no-standings-message" style="display: none; text-align: center; margin-top: 15px; color: #6c757d;">Standings will be available after the final Swiss round concludes.</p>
-                      </div>
-                      <!-- End Standings Section -->
-
-                  </div>
-              </main>
-              <!-- Link JS relative to the root -->
+              <header> <div class="container"> <h1 id="tournament-name">${TOURNAMENT_NAME}</h1> <p id="tournament-info"></p> <p style="margin-top: 5px;"><a href="../index.html" style="font-size: 0.9em;">← Back to Tournament List</a></p> </div> </header>
+              <main> <div class="container"> <div class="controls"> <nav id="round-tabs"></nav> <div class="search-container"> <input type="text" id="search-input" placeholder="Search by Player Name..."> <button type="button" id="clear-search-btn" class="clear-search-button" title="Clear search">×</button> </div> </div> <div id="pairings-container"> <h2 id="current-round-title"></h2> <table id="pairings-table" class="results-table"> <thead> <tr> <th>Table</th> <th>Player 1</th> <th>Player 2</th> </tr> </thead> <tbody id="pairings-body"></tbody> </table> <p id="loading-message">Loading pairings...</p> <p id="no-search-results" style="display: none; text-align: center; margin-top: 15px; color: #6c757d;">No players found matching your search.</p> </div> <div id="standings-container" style="display: none; margin-top: 40px;"> <h2 id="standings-title">Swiss Standings</h2> <table id="standings-table" class="results-table"> <thead> <tr> <th>Rank</th> <th>Player</th> <th>Record</th> <th>OWP %</th> <th>OOWP %</th> </tr> </thead> <tbody id="standings-body"></tbody> </table> <p id="standings-loading-message" style="display: none; text-align: center; margin-top: 15px; color: #6c757d;">Calculating standings...</p> <p id="no-standings-message" style="display: none; text-align: center; margin-top: 15px; color: #6c757d;">Standings will be available after the final Swiss round concludes.</p> </div> </div> </main>
               <script src="../assets/script.js"></script>
           </body>
           </html>
           EOF
           echo "Generated $TOURNAMENT_FOLDER/index.html"
-
-          # Move and rename the input TDF to the tournament's data folder
           echo "Moving '$INPUT_FILE' to '$TOURNAMENT_FOLDER/data/tournament_data.xml'"
           mv "$INPUT_FILE" "$TOURNAMENT_FOLDER/data/tournament_data.xml"
-          if [ $? -ne 0 ]; then
-             echo "ERROR: Failed to move TDF file!"
-             exit 1
-          fi
-
-          # Output folder and original name for potential use in later steps/jobs
+          if [ $? -ne 0 ]; then echo "ERROR: Failed to move TDF file!"; exit 1; fi
           echo "tournament_folder=$TOURNAMENT_FOLDER" >> $GITHUB_OUTPUT
           echo "tournament_name=$TOURNAMENT_NAME" >> $GITHUB_OUTPUT
 
-      # Step 5: Update Root Index File (List of Tournaments)
+      # Step 5: Update Root Index File
       - name: Update Root Index File
         run: |
           echo "Generating root index.html..."
-          # Start the HTML file
           cat << EOF > index.html
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Available Tournaments</title>
-              <link rel="preconnect" href="https://fonts.googleapis.com">
-              <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-              <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-              <!-- Link CSS from the root -->
-              <link rel="stylesheet" href="./assets/style.css">
-          </head>
-          <body>
-              <header>
-                  <div class="container">
-                       <h1>Available Tournaments</h1>
-                       <p>Select a tournament below to view pairings and standings.</p>
-                       <!-- Optional link to an admin upload page -->
-                       <!-- <p style="margin-top: 5px;"><a href="./admin_upload.html" style="font-size: 0.9em;">Admin Upload Page</a></p> -->
-                  </div>
-              </header>
-              <main>
-                  <div class="container">
-                      <table class="tournament-list-table">
-                          <thead>
-                              <tr>
-                                  <th>Tournament Name</th>
-                              </tr>
-                          </thead>
-                          <tbody>
+          <!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Available Tournaments</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"> <link rel="stylesheet" href="./assets/style.css"> </head> <body> <header> <div class="container"> <h1>Available Tournaments</h1> <p>Select a tournament below.</p> </div> </header> <main> <div class="container"> <table class="tournament-list-table"> <thead> <tr> <th>Tournament Name</th> </tr> </thead> <tbody>
           EOF
-
-          # Find all directories in the root (excluding specific ones) and add links
-          # Use find with -print0 and read -d $'\0' for safe handling of names with spaces/special chars
+          # Find folders and add links, sorted alphabetically
           find . -maxdepth 1 -mindepth 1 -type d ! -path './assets' ! -path './incoming' ! -path './.github' ! -path './.git' -print0 | sort -z | while IFS= read -r -d $'\0' dir; do
-              # Extract folder name (which is the sanitized tournament name)
               FOLDER_NAME=$(basename "$dir")
-              # Use folder name as the display name in the list (could try to read original name back if needed)
-              DISPLAY_NAME=${FOLDER_NAME//-/ } # Simple replacement for display
+              DISPLAY_NAME=${FOLDER_NAME//-/ } # Simple display name
               echo "Adding row for $FOLDER_NAME"
-              # Append table row HTML to index.html
               cat << ROW_EOF >> index.html
-                              <tr>
-                                  <td><a href="./$FOLDER_NAME/">$DISPLAY_NAME</a></td>
-                              </tr>
+                              <tr> <td><a href="./$FOLDER_NAME/">$DISPLAY_NAME</a></td> </tr>
           ROW_EOF
           done
-
-          # Finish the HTML file
+          # Finish the HTML
           cat << EOF >> index.html
-                          </tbody>
-                      </table>
-                  </div>
-              </main>
-          </body>
-          </html>
+                          </tbody> </table> </div> </main> </body> </html>
           EOF
           echo "Generated root index.html"
 
@@ -243,20 +118,18 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          # Pull just before adding to minimize conflicts, though unlikely with this workflow structure
-          git pull --rebase
-          git add . # Stage all changes (new folder, new root index, removed incoming file)
+          # >>>>> REMOVED git pull --rebase <<<<<
+          git add . # Stage all changes
           # Check if there are staged changes
           if ! git diff --staged --quiet; then
+            # Use output from step 4 if possible, otherwise use a generic name
             ORIGINAL_NAME="${{ steps.process_file.outputs.tournament_name }}"
             COMMIT_MSG="Automated: Process TDF upload"
-            # Add original name to commit message if available
             if [ ! -z "$ORIGINAL_NAME" ]; then
                COMMIT_MSG="$COMMIT_MSG for '$ORIGINAL_NAME'"
             fi
             git commit -m "$COMMIT_MSG"
-            # Push changes back to the main branch
-            git push
+            git push # Push the commit
             echo "Changes committed and pushed."
           else
             echo "No changes detected to commit."
