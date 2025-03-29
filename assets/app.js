@@ -1,15 +1,15 @@
 // Wait for the HTML document to be fully loaded before running script
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM fully loaded and parsed");
-    console.log("--- Initializing Pairing/Standings Script (v4.14.3 - Fixed Syntax Error DisplayStandings) ---");
+    console.log("--- Initializing Pairing/Standings Script (v4.14.2 - Fixed Syntax Error) ---");
 
     // --- DOM Element References ---
     const appContainer = document.getElementById('app'); // Get app container ref once
+    // References inside views will be obtained dynamically
 
     // Guard: Check essential elements
      if (!appContainer) {
           console.error("CRITICAL ERROR: Missing #app container. Stopping script.");
-          // Can't reliably show error if container is missing
           return;
      }
      console.log("Essential DOM elements (#app) found.");
@@ -22,27 +22,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const refreshInterval = 15000;
     const WP_MINIMUM = 0.25;
     const CURRENT_YEAR = new Date().getFullYear();
-    const DEBUG_STANDINGS = false; // Keep calculation logs off
+    const DEBUG_STANDINGS = false;
 
     // --- Core Data Loading and Parsing ---
     async function loadTournamentData(slug) {
         const xmlPath = `${slug}/data/tournament_data.xml`;
-        const statusEl = document.getElementById('update-status');
+        const statusEl = document.getElementById('update-status'); // Get dynamically if exists
+        // console.log(`loadTournamentData: Starting fetch for ${xmlPath}...`);
         try {
             const response = await fetch(`${xmlPath}?t=${new Date().getTime()}`);
+            // console.log(`loadTournamentData: Fetch status: ${response.status}`);
             if (!response.ok) { if (response.status === 404) { console.log(`Data file not found.`); if(statusEl) statusEl.textContent = `Waiting for data...`; } else { console.error(`HTTP error ${response.status}`); if(statusEl) statusEl.textContent = `Error (${response.status})`; } return false; }
             const xmlText = await response.text(); const parser = new DOMParser(); const xmlDoc = parser.parseFromString(xmlText, "application/xml"); const parseError = xmlDoc.querySelector("parsererror"); if (parseError) { console.error("XML Parsing Error:", parseError.textContent); if(statusEl) statusEl.textContent = `Parse Error`; return false; }
-            const currentTimeElapsedElement = xmlDoc.querySelector('tournament > timeelapsed'); const currentTimeElapsed = currentTimeElapsedElement ? parseInt(currentTimeElapsedElement.textContent, 10) : -1; if (currentTimeElapsed !== -1 && currentTimeElapsed === lastKnownTimeElapsed) { if(statusEl) statusEl.textContent = `Up to date`; return false; }
-            console.log("loadTournamentData: Change detected. Processing..."); extractTournamentDataFromXML(xmlDoc); lastKnownTimeElapsed = currentTimeElapsed; console.log("loadTournamentData: Data extraction complete."); if(statusEl) statusEl.textContent = 'Processing...'; return true;
+            // console.log("loadTournamentData: XML parsed.");
+            const currentTimeElapsedElement = xmlDoc.querySelector('tournament > timeelapsed'); const currentTimeElapsed = currentTimeElapsedElement ? parseInt(currentTimeElapsedElement.textContent, 10) : -1; if (currentTimeElapsed !== -1 && currentTimeElapsed === lastKnownTimeElapsed) { /* console.log("loadTournamentData: No change."); */ if(statusEl) statusEl.textContent = `Up to date`; return false; }
+            console.log("loadTournamentData: Change detected. Processing...");
+            extractTournamentDataFromXML(xmlDoc);
+            lastKnownTimeElapsed = currentTimeElapsed;
+            console.log("loadTournamentData: Data extraction complete.");
+            if(statusEl) statusEl.textContent = 'Processing...';
+            return true;
         } catch (error) { console.error("loadTournamentData: Error:", error); if(statusEl) statusEl.textContent = `Fetch Error`; return false; }
     }
 
     function extractTournamentDataFromXML(xmlDoc) {
+        // console.log("extractData: Starting...");
         playersData = {}; roundsData = []; let extractionError = false;
         try {
             const tempPlayersData = {}; const playerElements = xmlDoc.querySelectorAll('tournament > players > player');
             playerElements.forEach((player) => { const userId = player.getAttribute('userid'); const firstName = player.querySelector('firstname')?.textContent || ''; const lastName = player.querySelector('lastname')?.textContent || ''; if (userId) { tempPlayersData[String(userId)] = { id: String(userId), firstName, lastName, name: `${firstName} ${lastName}`.trim() }; }});
             playersData = tempPlayersData;
+
             const tempRoundsData = []; const roundElements = xmlDoc.querySelectorAll('tournament > pods > pod > rounds > round');
             roundElements.forEach((round) => {
                 const roundNumber = parseInt(round.getAttribute('number'), 10); const roundType = round.getAttribute('type'); if (isNaN(roundNumber)) return;
@@ -55,11 +65,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // console.log(`extractData: Finished. players: ${Object.keys(playersData).length}, rounds: ${roundsData.length}, Error: ${extractionError}`);
     }
 
+
     // --- Standings Calculation Logic ---
     function calculatePlayerSwissRecord(playerId, maxRoundNumber) {
          let matchWins = 0, losses = 0, ties = 0, byes = 0, matchPoints = 0, roundsParticipated = 0, highestRoundParticipated = 0; const pid=String(playerId); if(!pid) return {matchWins,losses,ties,byes,matchPoints,roundsParticipated,highestRoundParticipated};
          for(const rnd of roundsData){ if(rnd.type!=="3"||rnd.roundNumber>maxRoundNumber) continue; let played=false; for(const m of rnd.matches){ let found=false; const p1=String(m.player1Id), p2=String(m.player2Id); if(m.isBye&&p1===pid){ byes++; matchPoints+=3; found=true; } else if(p1===pid){ if(m.outcome===1){ matchWins++; matchPoints+=3; } else if(m.outcome===2){ losses++; matchPoints+=0; } else if(m.outcome===3||m.outcome===4){ ties++; matchPoints+=1; } else{ matchPoints+=0; } found=true; } else if(p2===pid){ if(m.outcome===1){ losses++; matchPoints+=0; } else if(m.outcome===2){ matchWins++; matchPoints+=3; } else if(m.outcome===3||m.outcome===4){ ties++; matchPoints+=1; } else{ matchPoints+=0; } found=true; } if(found){ played=true; break; } } if(played){ roundsParticipated++; highestRoundParticipated=rnd.roundNumber; } }
-         if (DEBUG_STANDINGS && playersData[pid]) console.log(`DEBUG Record: ${pid} R${maxRoundNumber}: MW=${matchWins}, B=${byes}, L=${losses}, T=${ties}, MP=${matchPoints}, RP=${roundsParticipated}`);
+         if (DEBUG_STANDINGS && playersData[pid]) console.log(`      DEBUG: Record for ${playersData[pid]?.name} (${pid}) up to R${maxRoundNumber}: MatchWins=${matchWins}, Byes=${byes}, Losses=${losses}, Ties=${ties} (${matchPoints}pts). RoundsParticipated=${roundsParticipated}`);
          return {matchWins:matchWins, losses:losses, ties:ties, byes:byes, matchPoints:matchPoints, roundsParticipated:roundsParticipated, highestRoundParticipated:highestRoundParticipated};
     }
     function getSwissOpponents(playerId, maxRoundNumber) { const opps = new Set(); const pid=String(playerId); if(!pid) return []; for(const rnd of roundsData){ if(rnd.type!=="3"||rnd.roundNumber>maxRoundNumber) continue; for(const m of rnd.matches){ if(m.isBye) continue; const p1=String(m.player1Id), p2=String(m.player2Id); if(p1===pid&&p2) opps.add(p2); else if(p2===pid&&p1) opps.add(p1); }} return Array.from(opps); }
@@ -67,32 +78,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const effectivePlayerId = String(playerId); const cacheKey = `${effectivePlayerId}_R${maxRoundNumber}`; if (currentStandingsCache[cacheKey]?.wp !== undefined) { return currentStandingsCache[cacheKey].wp; }
         let record = currentStandingsCache[cacheKey]?.record || calculatePlayerSwissRecord(effectivePlayerId, maxRoundNumber); if (!currentStandingsCache[cacheKey]) currentStandingsCache[cacheKey] = {}; currentStandingsCache[cacheKey].record = record;
         const matchWins = record.matchWins; const divisor = record.roundsParticipated - record.byes; let finalWP; if (divisor <= 0) { finalWP = WP_MINIMUM; } else { const rawWP = matchWins / divisor; finalWP = Math.max(rawWP, WP_MINIMUM); } currentStandingsCache[cacheKey].wp = finalWP;
-        if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`DEBUG WP: ${cacheKey} MW=${matchWins}, Div=${divisor} => Final=${finalWP.toFixed(6)}`);
+        if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`    DEBUG: WP CALC for ${cacheKey} (${playersData[effectivePlayerId]?.name}): MatchWins=${matchWins}, Divisor(Rounds-Byes)=${divisor}, Raw=${(divisor > 0 ? (matchWins/divisor) : 'N/A').toFixed(6)} => Final=${finalWP.toFixed(6)}`);
         return finalWP;
     }
     function calculateOWP(playerId, maxRoundNumber, currentStandingsCache) {
         const effectivePlayerId = String(playerId); const cacheKey = `${effectivePlayerId}_R${maxRoundNumber}`; if (currentStandingsCache[cacheKey]?.owp !== undefined) { return currentStandingsCache[cacheKey].owp; }
         const opponents = getSwissOpponents(effectivePlayerId, maxRoundNumber); if (opponents.length === 0) { if (!currentStandingsCache[cacheKey]) currentStandingsCache[cacheKey] = {}; currentStandingsCache[cacheKey].owp = 0; return 0; }
         let totalOpponentWinPercentage = 0; let validOpponentCount = 0;
-        opponents.forEach(oppId => { try { const opponentWinPerc = getPlayerSwissWinPercentage(oppId, maxRoundNumber, currentStandingsCache); if (typeof opponentWinPerc === 'number' && !isNaN(opponentWinPerc)) { totalOpponentWinPercentage += opponentWinPerc; validOpponentCount++; } else { console.warn(`OWP (${cacheKey}): Invalid WP for opp ${oppId}.`); } } catch (e) { console.error(`OWP (${cacheKey}): Error for opp ${oppId}:`, e); } });
+        if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`  DEBUG: OWP CALC for ${cacheKey} (${playersData[effectivePlayerId]?.name}), Opponents: [${opponents.join(', ')}]`);
+        opponents.forEach(oppId => { try { const opponentWinPerc = getPlayerSwissWinPercentage(oppId, maxRoundNumber, currentStandingsCache); if (typeof opponentWinPerc === 'number' && !isNaN(opponentWinPerc)) { totalOpponentWinPercentage += opponentWinPerc; validOpponentCount++; if (DEBUG_STANDINGS) console.log(`      Opponent ${oppId} WP: ${opponentWinPerc.toFixed(6)}`); } else { console.warn(`OWP (${cacheKey}): Invalid WP for opp ${oppId}.`); } } catch (e) { console.error(`OWP (${cacheKey}): Error for opp ${oppId}:`, e); } });
         const result = (validOpponentCount > 0) ? (totalOpponentWinPercentage / validOpponentCount) : 0; if (!currentStandingsCache[cacheKey]) currentStandingsCache[cacheKey] = {}; currentStandingsCache[cacheKey].owp = result;
-        if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`DEBUG OWP: ${cacheKey} Avg=${result.toFixed(6)}`);
+        if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`  DEBUG: OWP RESULT for ${cacheKey} (${playersData[effectivePlayerId]?.name}): Sum=${totalOpponentWinPercentage.toFixed(6)}, Count=${validOpponentCount}, Avg=${result.toFixed(6)}`);
         return result;
     }
     function calculateOOWP(playerId, maxRoundNumber, currentStandingsCache) {
          const effectivePlayerId = String(playerId); const cacheKey = `${effectivePlayerId}_R${maxRoundNumber}`; if (currentStandingsCache[cacheKey]?.oowp !== undefined) { return currentStandingsCache[cacheKey].oowp; }
         const opponents = getSwissOpponents(effectivePlayerId, maxRoundNumber); if (opponents.length === 0) { if (!currentStandingsCache[cacheKey]) currentStandingsCache[cacheKey] = {}; currentStandingsCache[cacheKey].oowp = 0; return 0; }
         let totalOpponentOWP = 0; let validOpponentCount = 0;
-        opponents.forEach(oppId => { try { const oppOWP = calculateOWP(oppId, maxRoundNumber, currentStandingsCache); if (typeof oppOWP === 'number' && !isNaN(oppOWP)) { totalOpponentOWP += oppOWP; validOpponentCount++; } else { console.warn(`OOWP (${cacheKey}): Invalid OWP for opp ${oppId}.`); } } catch (e) { console.error(`OOWP (${cacheKey}): Error for opp ${oppId}:`, e); } });
+        if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`DEBUG: OOWP CALC for ${cacheKey} (${playersData[effectivePlayerId]?.name}), Opponents: [${opponents.join(', ')}]`);
+        opponents.forEach(oppId => { try { const oppOWP = calculateOWP(oppId, maxRoundNumber, currentStandingsCache); if (typeof oppOWP === 'number' && !isNaN(oppOWP)) { totalOpponentOWP += oppOWP; validOpponentCount++; if (DEBUG_STANDINGS) console.log(`    Opponent ${oppId} OWP: ${oppOWP.toFixed(6)}`); } else { console.warn(`OOWP (${cacheKey}): Invalid OWP for opp ${oppId}.`); } } catch (e) { console.error(`OOWP (${cacheKey}): Error for opp ${oppId}:`, e); } });
         const result = (validOpponentCount > 0) ? (totalOpponentOWP / validOpponentCount) : 0; if (!currentStandingsCache[cacheKey]) currentStandingsCache[cacheKey] = {}; currentStandingsCache[cacheKey].oowp = result;
-        if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`DEBUG OOWP: ${cacheKey} Avg=${result.toFixed(6)}`);
+        if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`DEBUG: OOWP RESULT for ${cacheKey} (${playersData[effectivePlayerId]?.name}): Sum=${totalOpponentOWP.toFixed(6)}, Count=${validOpponentCount}, Avg=${result.toFixed(6)}`);
         return result;
     }
     function calculateSwissStandingsForRound(maxRoundNumber) {
-        if (DEBUG_STANDINGS) console.log(`--- Calculating Standings R${maxRoundNumber} ---`);
+        if (DEBUG_STANDINGS) console.log(`\n--- Calculating Standings FOR COMPLETED ROUND ${maxRoundNumber} ---`);
         const currentStandingsCache = {}; const standingsData = []; const allPlayerIds = Object.keys(playersData); if (allPlayerIds.length === 0) { return []; }
+        if (DEBUG_STANDINGS) console.log(`\n--- STEP 1: Records & WPs for R${maxRoundNumber} ---`);
         allPlayerIds.forEach(playerId => { getPlayerSwissWinPercentage(playerId, maxRoundNumber, currentStandingsCache); });
+        if (DEBUG_STANDINGS) console.log(`\n--- STEP 2: OWPs for R${maxRoundNumber} ---`);
         allPlayerIds.forEach(playerId => { calculateOWP(playerId, maxRoundNumber, currentStandingsCache); });
+        if (DEBUG_STANDINGS) console.log(`\n--- STEP 3: OOWPs & Final Data for R${maxRoundNumber} ---`);
         allPlayerIds.forEach(playerId => {
             const cacheKey = `${playerId}_R${maxRoundNumber}`; const playerInfo = playersData[playerId]; const cachedData = currentStandingsCache[cacheKey];
             if (cachedData?.record && cachedData.wp !== undefined && cachedData.owp !== undefined && playerInfo) {
@@ -104,22 +120,22 @@ document.addEventListener('DOMContentLoaded', () => {
         return standingsData;
     }
     function sortStandings(standingsData) {
-        return standingsData.sort((a, b) => { if (b.matchPoints !== a.matchPoints) return b.matchPoints - a.matchPoints; const owpDiff = b.owp - a.owp; if (Math.abs(owpDiff) > 1e-9) return owpDiff; const oowpDiff = b.oowp - a.oowp; if (Math.abs(oowpDiff) > 1e-9) return oowpDiff; return a.playerInfo.name.localeCompare(b.playerInfo.name); });
+        // >>>>> CORRECTED FUNCTION BODY <<<<<
+        return standingsData.sort((a, b) => {
+            if (b.matchPoints !== a.matchPoints) return b.matchPoints - a.matchPoints;
+            const owpDiff = b.owp - a.owp; if (Math.abs(owpDiff) > 1e-9) return owpDiff;
+            const oowpDiff = b.oowp - a.oowp; if (Math.abs(oowpDiff) > 1e-9) return oowpDiff;
+            return a.playerInfo.name.localeCompare(b.playerInfo.name);
+        });
     }
     function displayStandings(sortedStandings) {
         const standingsTableBody = document.getElementById('standings-body');
         const noStandingsMsg = document.getElementById('no-standings-message');
         const standingsContainer = document.getElementById('standings-container');
+        // console.log("displayStandings: Starting display...");
         if (!standingsTableBody) { console.error("displayStandings: Missing table body!"); return; }
-        standingsTableBody.innerHTML = '';
-        if (!Array.isArray(sortedStandings) || sortedStandings.length === 0) {
-            if (standingsContainer) standingsContainer.style.display = 'block';
-            if(noStandingsMsg) noStandingsMsg.style.display = 'block';
-             console.log("displayStandings: No standings data to display.");
-            return;
-        }
-        if(noStandingsMsg) noStandingsMsg.style.display = 'none';
-        if (standingsContainer) standingsContainer.style.display = 'block';
+        standingsTableBody.innerHTML = ''; if (!Array.isArray(sortedStandings) || sortedStandings.length === 0) { if (standingsContainer) standingsContainer.style.display = 'block'; if(noStandingsMsg) noStandingsMsg.style.display = 'block'; return; }
+        if(noStandingsMsg) noStandingsMsg.style.display = 'none'; if (standingsContainer) standingsContainer.style.display = 'block';
         sortedStandings.forEach((data, index) => {
             try {
                 const rank = index + 1;
@@ -129,19 +145,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cellRecord = row.insertCell(); cellRecord.textContent = data.recordString; cellRecord.style.textAlign = 'center';
                 const cellOWP = row.insertCell(); cellOWP.textContent = (data.owp * 100).toFixed(2); cellOWP.style.textAlign = 'right';
                 const cellOOWP = row.insertCell(); cellOOWP.textContent = (data.oowp * 100).toFixed(2); cellOOWP.style.textAlign = 'right';
-            } catch (error) { // <<< FIX: Catch block needs curly braces
+            // >>>>> FIXED: Correctly close the try block before catch <<<<<
+            } catch (error) {
                 console.error(`Error displaying standings row ${index + 1}:`, error);
-            } // <<< FIX: Closing brace for try-catch
-        }); // <<< Closing parenthesis for forEach
-        // Removed console log here
-    } // <<< FIX: Closing brace for function displayStandings
+            }
+        }); // <<< Correctly close forEach here
+        // console.log("displayStandings: Display finished."); // <<< Correctly close function here
+    }
 
 
     // --- UI Update Functions (For Tournament View) ---
     function updateTournamentUI() {
+        // console.log("updateTournamentUI: Starting...");
         if (Object.keys(playersData).length === 0 || roundsData.length === 0) { console.log("updateTournamentUI: No data to display."); return; }
         generateTabs(); displayRound(currentRound); updateActiveTab(); updateStandingsDisplay();
         const pairingLoading = document.getElementById('loading-message'); if(pairingLoading) pairingLoading.style.display = 'none';
+        // console.log("updateTournamentUI: Finished.");
     }
 
     function generateTabs() {
@@ -205,7 +224,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleRouteChange() {
         const hash = window.location.hash.substring(1); console.log("Route changed:", hash);
-        if(updateIntervalId) { clearInterval(updateIntervalId); updateIntervalId = null; console.log("Cleared existing update interval."); } lastKnownTimeElapsed = -1;
+        // Clear previous interval timer if navigating away from a tournament
+        if(updateIntervalId) { clearInterval(updateIntervalId); updateIntervalId = null; console.log("Cleared existing update interval."); }
+        lastKnownTimeElapsed = -1; // Reset timeelapsed check for new view
+
         if (hash && hash.startsWith('tournament/')) { const slug = hash.substring('tournament/'.length); if (slug) { showTournamentView(slug); } else { showListView(); } }
         else { showListView(); }
     }
@@ -214,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function renderListView() {
         console.log("Rendering List View"); if (!appContainer) return; currentView = 'list'; currentTournamentSlug = null;
         appContainer.innerHTML = `<div class="container"><section id="tournament-list"><h2>Select Tournament</h2><div class="tournament-grid" id="tournament-grid-container"><p class="loading-list">Loading tournaments...</p></div></section></div>`;
-        try { if (tournamentsData.length === 0) { console.log("Fetching tournaments.json..."); const response = await fetch('data/tournaments.json?t=' + new Date().getTime()); if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); tournamentsData = await response.json(); console.log(`Loaded ${tournamentsData.length} tournaments.`); } const gridContainer = document.getElementById('tournament-grid-container'); if (tournamentsData.length > 0) { gridContainer.innerHTML = tournamentsData.map(t => `<a href="#tournament/${t.slug}" class="tournament-card">${escapeHtml(t.name)}<span class="tournament-date" style="font-size: 0.8em; color: var(--text-secondary); display: block; margin-top: 4px;">${t.date || ''}</span></a>`).join(''); } else { gridContainer.innerHTML = '<p>No tournaments found.</p>'; } } catch (error) { console.error("Error loading/rendering list:", error); const gridContainer = document.getElementById('tournament-grid-container'); if (gridContainer) gridContainer.innerHTML = '<p class="error">Could not load tournament list.</p>'; }
+        try { if (tournamentsData.length === 0) { console.log("Fetching tournaments.json..."); const response = await fetch('data/tournaments.json?t=' + new Date().getTime()); if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); tournamentsData = await response.json(); console.log(`Loaded ${tournamentsData.length} tournaments.`); } const gridContainer = document.getElementById('tournament-grid-container'); if (tournamentsData.length > 0) { gridContainer.innerHTML = tournamentsData.map(t => `<a href="#tournament/${t.slug}" class="tournament-card">${escapeHtml(t.name)}<span class="tournament-date">${t.date || ''}</span></a>`).join(''); } else { gridContainer.innerHTML = '<p>No tournaments found.</p>'; } } catch (error) { console.error("Error loading/rendering list:", error); const gridContainer = document.getElementById('tournament-grid-container'); if (gridContainer) gridContainer.innerHTML = '<p class="error">Could not load tournament list.</p>'; }
     }
 
     // Render the view for a specific tournament
@@ -222,45 +244,64 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Rendering Tournament View for:", slug); if (!appContainer) return; currentView = 'tournament'; currentTournamentSlug = slug; playersData = {}; roundsData = []; currentRound = 1;
         appContainer.innerHTML = `
             <div class="container tournament-view-container">
-                 <div id="tournament-header-info" style="margin-bottom: 20px;"> <h1 id="tournament-name">Loading...</h1> <p id="tournament-info"></p> <p><a href="#" style="font-size: 0.9em;">← Back to Tournament List</a></p> <span id="update-status"></span> </div>
+                 <div id="tournament-header-info" style="margin-bottom: 20px;"> <!-- Add margin -->
+                    <h1 id="tournament-name">Loading...</h1>
+                    <p id="tournament-info"></p>
+                    <p><a href="#" style="font-size: 0.9em;">← Back to Tournament List</a></p>
+                    <span id="update-status"></span>
+                 </div>
                  <div class="controls"> <nav id="round-tabs"></nav> <div class="search-container"> <input type="text" id="search-input" placeholder="Search by Player Name..."> <button type="button" id="clear-search-btn" class="clear-search-button" title="Clear search">×</button> </div> </div>
                  <div id="pairings-container"> <h2 id="current-round-title"></h2> <table id="pairings-table" class="results-table"> <thead> <tr> <th>Table</th> <th>Player 1</th> <th>Player 2</th> </tr> </thead> <tbody id="pairings-body"></tbody> </table> <p id="loading-message">Loading pairings...</p> <p id="no-search-results" style="display: none;">No players found matching.</p> </div>
                  <div id="standings-container" style="display: none; margin-top: 40px;"> <h2 id="standings-title">Swiss Standings</h2> <table id="standings-table" class="results-table"> <thead> <tr> <th>Rank</th> <th>Player</th> <th>Record</th> <th>OWP %</th> <th>OOWP %</th> </tr> </thead> <tbody id="standings-body"></tbody> </table> <p id="standings-loading-message" style="display: none;">Calculating standings...</p> <p id="no-standings-message" style="display: none;">Standings pending.</p> </div>
             </div>`;
         appContainer.querySelector('a[href="#"]').addEventListener('click', (e) => { e.preventDefault(); window.location.hash = ''; });
         await loadAndDisplayTournamentData(slug); // Initial load
-        if (updateIntervalId) clearInterval(updateIntervalId); updateIntervalId = setInterval(() => checkForTournamentUpdate(slug), refreshInterval); console.log(`Started update interval for ${slug}`);
+        // Start auto-update timer ONLY for tournament view
+        if (updateIntervalId) clearInterval(updateIntervalId);
+        updateIntervalId = setInterval(() => checkForTournamentUpdate(slug), refreshInterval); // Pass slug to checker
+        console.log(`Started update interval for ${slug}`);
     }
 
     // Fetch and display data for a specific tournament
     async function loadAndDisplayTournamentData(slug) {
-        const didLoad = await loadTournamentData(slug);
+        const didLoad = await loadTournamentData(slug); // Fetches and extracts
         if (didLoad) {
-             const headerInfo = document.getElementById('tournament-header-info');
-             if(headerInfo) {
-                const nameEl = headerInfo.querySelector('#tournament-name'); const infoEl = headerInfo.querySelector('#tournament-info');
-                const currentTournament = tournamentsData.find(t => t.slug === slug); // Try to get name from manifest
-                if (nameEl) nameEl.textContent = currentTournament?.name || slug.replace(/-/g, ' '); // Use manifest name or slug
-                 if (infoEl && playersData) { // Attempt to get location from XML if needed (requires parsing data tag again)
-                     // Placeholder: Fetching actual location would require parsing XML here or storing it in manifest
-                     infoEl.textContent = ""; // Clear placeholder
-                 }
-                 const statusEl = headerInfo.querySelector('#update-status'); if(statusEl) statusEl.textContent = 'Loaded';
-             }
-             updateTournamentUI(); setupTournamentEventListeners();
-        } else { const pairingLoading = document.getElementById('loading-message'); if(pairingLoading) pairingLoading.textContent = 'Could not load tournament data.'; }
+             // Update header info
+            const headerInfo = document.getElementById('tournament-header-info');
+            if(headerInfo) {
+                const nameEl = headerInfo.querySelector('#tournament-name');
+                const infoEl = headerInfo.querySelector('#tournament-info');
+                // Find name/info from playersData/roundsData if needed, or use slug as fallback
+                 const tournamentNameFromData = Object.values(playersData).length > 0 ? `Tournament ${slug}` : "Loading..."; // Placeholder - Ideally get name from manifest or XML <data> tag during extraction if needed again
+                 const tournamentLocationFromData = ""; // Placeholder - Same as above
+                if (nameEl) nameEl.textContent = tournamentNameFromData;
+                if (infoEl) infoEl.textContent = tournamentLocationFromData;
+                const statusEl = headerInfo.querySelector('#update-status');
+                if(statusEl) statusEl.textContent = 'Loaded';
+            }
+            updateTournamentUI(); // Populate tabs, pairings, standings
+            setupTournamentEventListeners(); // Add search listeners etc.
+        } else {
+             // Handle case where data didn't load but view is shown (maybe initial load failed)
+             const pairingLoading = document.getElementById('loading-message');
+             if(pairingLoading) pairingLoading.textContent = 'Could not load tournament data.';
+        }
     }
 
     // Auto-update check function specifically for tournament view
     async function checkForTournamentUpdate(slug) {
         // console.log(`Checking for updates for ${slug}...`);
-        const newDataProcessed = await loadTournamentData(slug);
-        if (newDataProcessed) { console.log("checkForTournamentUpdate: New data processed, updating UI."); updateTournamentUI(); }
+        const newDataProcessed = await loadTournamentData(slug); // Re-fetches and re-extracts if changed
+        if (newDataProcessed) {
+            console.log("checkForTournamentUpdate: New data processed, updating UI.");
+            updateTournamentUI(); // Re-render tabs, pairings, standings
+            // Event listeners should persist unless elements are completely replaced
+        }
     }
 
     window.addEventListener('hashchange', handleRouteChange);
 
     // Initial load
-    handleRouteChange();
+    handleRouteChange(); // Render view based on initial URL hash
 
 }); // End of DOMContentLoaded
