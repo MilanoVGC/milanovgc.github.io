@@ -1,7 +1,7 @@
 // Wait for the HTML document to be fully loaded before running script
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM fully loaded and parsed");
-    console.log("--- Initializing Pairing/Standings Script (User Logic v4.6 - WP Excludes Byes in Numerator & Denominator) ---");
+    console.log("--- Initializing Pairing/Standings Script (TPCi Rules - v4.7 Fixed Record String) ---");
 
     // --- DOM Element References ---
     const tournamentNameElement = document.getElementById('tournament-name');
@@ -35,12 +35,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Configuration ---
     const xmlFilePath = 'data/tournament_data.xml';
     const refreshInterval = 15000;
-    const WP_MINIMUM = 0.25; // Minimum Win Percentage
+    const WP_MINIMUM = 0.25; // Minimum Win Percentage from user observation / previous logic
     const ROUNDING_PRECISION = 4; // Intermediate rounding precision
     const CURRENT_YEAR = new Date().getFullYear();
-    const DEBUG_STANDINGS = true;
+    const DEBUG_STANDINGS = true; // Keep debug logs
 
-    // --- Core Data Loading and Parsing (Identical to v4.4) ---
+    // --- Core Data Loading and Parsing (Identical to v4.4/v4.6) ---
     async function loadTournamentData() {
         console.log("loadTournamentData: Starting fetch..."); try { const response = await fetch(`${xmlFilePath}?t=${new Date().getTime()}`); console.log(`loadTournamentData: Fetch status: ${response.status}`); if (!response.ok) { /* error handling */ return false; } const xmlText = await response.text(); const parser = new DOMParser(); const xmlDoc = parser.parseFromString(xmlText, "application/xml"); const parseError = xmlDoc.querySelector("parsererror"); if (parseError) { /* error handling */ return false; } console.log("loadTournamentData: XML parsed."); const currentTimeElapsedElement = xmlDoc.querySelector('tournament > timeelapsed'); const currentTimeElapsed = currentTimeElapsedElement ? parseInt(currentTimeElapsedElement.textContent, 10) : -1; if (currentTimeElapsed !== -1 && currentTimeElapsed === lastKnownTimeElapsed) { console.log("loadTournamentData: No change."); return false; } console.log("loadTournamentData: Change detected. Processing..."); extractData(xmlDoc); lastKnownTimeElapsed = currentTimeElapsed; console.log("loadTournamentData: Data extraction complete."); return true; } catch (error) { console.error("loadTournamentData: Error:", error); return false; }
     }
@@ -49,17 +49,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- Standings Calculation Logic (User Logic v4.6) ---
+    // --- Standings Calculation Logic (User Logic v4.7 - Fixed Record Bug) ---
 
     /** Helper: Rounds a number to specified precision */
     function roundToPrecision(value, precision) { const factor = Math.pow(10, precision); return Math.round(value * factor) / factor; }
 
-    /** Calculates record & participation */
+    /**
+     * Calculates record & participation (v4.7 - Fixed Bye/Win Counting Bug).
+     * Returns { matchWins, losses, ties, byes, matchPoints, roundsParticipated, highestRoundParticipated }
+     */
     function calculatePlayerSwissRecord(playerId, maxRoundNumber) {
-         let w=0, l=0, t=0, b=0, mp=0, rp=0, hr=0; const pid=String(playerId); if(!pid) return {wins:w,losses:l,ties:t,byes:b,matchPoints:mp,roundsParticipated:rp,highestRoundParticipated:hr};
-         for(const rnd of roundsData){ if(rnd.type!=="3"||rnd.roundNumber>maxRoundNumber) continue; let played=false; for(const m of rnd.matches){ let found=false; const p1=String(m.player1Id), p2=String(m.player2Id); if(m.isBye&&p1===pid){w++;b++;mp+=3;found=true;}else if(p1===pid){if(m.outcome===1){w++;mp+=3;}else if(m.outcome===2){l++;mp+=0;}else if(m.outcome===3||m.outcome===4){t++;mp+=1;}else{mp+=0;}found=true;}else if(p2===pid){if(m.outcome===1){l++;mp+=0;}else if(m.outcome===2){w++;mp+=3;}else if(m.outcome===3||m.outcome===4){t++;mp+=1;}else{mp+=0;}found=true;}if(found){played=true;break;}}if(played){rp++;hr=rnd.roundNumber;}}
-         if (DEBUG_STANDINGS && playersData[pid]) console.log(`      DEBUG: Record for ${playersData[pid]?.name} (${pid}) up to R${maxRoundNumber}: MatchWins=${w}, Byes=${b}, Losses=${l}, Ties=${t} (${mp}pts). RoundsParticipated=${rp}`);
-         return {wins:w,losses:l,ties:t,byes:b,matchPoints:mp,roundsParticipated:rp,highestRoundParticipated:hr}; // Return 'wins' as match wins
+        // Use distinct variable for actual match wins vs byes
+        let matchWins = 0, losses = 0, ties = 0, byes = 0, matchPoints = 0, roundsParticipated = 0, highestRoundParticipated = 0;
+        const pid=String(playerId); if(!pid) return {matchWins,losses,ties,byes,matchPoints,roundsParticipated,highestRoundParticipated};
+
+        for(const rnd of roundsData){
+            if(rnd.type!=="3"||rnd.roundNumber>maxRoundNumber) continue;
+            let played=false;
+            for(const m of rnd.matches){
+                let found=false; const p1=String(m.player1Id), p2=String(m.player2Id);
+                if(m.isBye&&p1===pid){
+                    // >>> FIX: Only increment byes and matchPoints here, NOT matchWins <<<
+                    byes++; mp+=3; found=true;
+                } else if(p1===pid){
+                    if(m.outcome===1){ matchWins++; mp+=3; } // Increment matchWins
+                    else if(m.outcome===2){ l++; mp+=0; }
+                    else if(m.outcome===3||m.outcome===4){ t++; mp+=1; }
+                    else{ mp+=0; } found=true;
+                } else if(p2===pid){
+                    if(m.outcome===1){ l++; mp+=0; }
+                    else if(m.outcome===2){ matchWins++; mp+=3; } // Increment matchWins
+                    else if(m.outcome===3||m.outcome===4){ t++; mp+=1; }
+                    else{ mp+=0; } found=true;
+                }
+                if(found){ played=true; break; }
+            }
+            if(played){ rp++; hr=rnd.roundNumber; }
+        }
+        if (DEBUG_STANDINGS && playersData[pid]) console.log(`      DEBUG: Record for ${playersData[pid]?.name} (${pid}) up to R${maxRoundNumber}: MatchWins=${matchWins}, Byes=${byes}, Losses=${l}, Ties=${t} (${mp}pts). RoundsParticipated=${rp}`);
+        // >>> FIX: Return the correct variable for match wins <<<
+        return {matchWins:matchWins, losses:l, ties:t, byes:b, matchPoints:mp, roundsParticipated:rp, highestRoundParticipated:hr};
     }
 
     /** Gets opponents */
@@ -69,44 +98,31 @@ document.addEventListener('DOMContentLoaded', () => {
         return Array.from(opps);
     }
 
-    /**
-     * Calculates WP based on User Hypothesis: MatchWins / (RoundsParticipated - Byes), Min 0.25 (v4.6)
-     */
+    /** Calculates WP based on User Hypothesis: MatchWins / (RoundsParticipated - Byes), Min 0.25 (v4.7) */
     function getPlayerSwissWinPercentage(playerId, maxRoundNumber, currentStandingsCache) {
         const effectivePlayerId = String(playerId); const cacheKey = `${effectivePlayerId}_R${maxRoundNumber}`; if (currentStandingsCache[cacheKey]?.wp !== undefined) { return currentStandingsCache[cacheKey].wp; }
         let record = currentStandingsCache[cacheKey]?.record || calculatePlayerSwissRecord(effectivePlayerId, maxRoundNumber); if (!currentStandingsCache[cacheKey]) currentStandingsCache[cacheKey] = {}; currentStandingsCache[cacheKey].record = record;
 
-        const matchWins = record.wins; // Use only match wins (variable name was already 'wins')
-        const divisor = record.roundsParticipated - record.byes; // Use Rounds Participated MINUS Byes
+        // Use the correctly calculated matchWins from the record object
+        const matchWins = record.matchWins;
+        const divisor = record.roundsParticipated - record.byes;
 
         let finalWP;
-        if (divisor <= 0) { // If player only had byes or didn't play matches
-            finalWP = WP_MINIMUM;
-            if (DEBUG_STANDINGS) console.log(`    DEBUG: WP CALC for ${cacheKey} (${playersData[effectivePlayerId]?.name}): Divisor (${divisor}) <= 0. Using Minimum WP: ${finalWP.toFixed(4)}`);
-        } else {
-            const rawWP = matchWins / divisor;
-            finalWP = Math.max(rawWP, WP_MINIMUM); // Apply minimum 0.25
-            if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`    DEBUG: WP CALC for ${cacheKey} (${playersData[effectivePlayerId]?.name}): MatchWins=${matchWins}, Divisor(Rounds-Byes)=${divisor}, Raw=${rawWP.toFixed(4)} => Final=${finalWP.toFixed(ROUNDING_PRECISION + 2)}`);
-        }
-
+        if (divisor <= 0) { finalWP = WP_MINIMUM; if (DEBUG_STANDINGS) console.log(`    DEBUG: WP CALC for ${cacheKey} (${playersData[effectivePlayerId]?.name}): Divisor (${divisor}) <= 0. Using Minimum WP: ${finalWP.toFixed(4)}`); }
+        else { const rawWP = matchWins / divisor; finalWP = Math.max(rawWP, WP_MINIMUM); if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`    DEBUG: WP CALC for ${cacheKey} (${playersData[effectivePlayerId]?.name}): MatchWins=${matchWins}, Divisor(Rounds-Byes)=${divisor}, Raw=${rawWP.toFixed(4)} => Final=${finalWP.toFixed(ROUNDING_PRECISION + 2)}`); }
         currentStandingsCache[cacheKey].wp = finalWP;
         return finalWP;
     }
 
-    /** Calculates OWP with intermediate rounding. (v4.6) */
+    /** Calculates OWP with intermediate rounding. (v4.7) */
     function calculateOWP(playerId, maxRoundNumber, currentStandingsCache) {
         const effectivePlayerId = String(playerId); const cacheKey = `${effectivePlayerId}_R${maxRoundNumber}`; if (currentStandingsCache[cacheKey]?.owp !== undefined) { return currentStandingsCache[cacheKey].owp; }
         const opponents = getSwissOpponents(effectivePlayerId, maxRoundNumber); if (opponents.length === 0) { if (!currentStandingsCache[cacheKey]) currentStandingsCache[cacheKey] = {}; currentStandingsCache[cacheKey].owp = 0; return 0; }
         let totalOpponentWinPercentageRounded = 0; let validOpponentCount = 0;
         if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`  DEBUG: OWP CALC for ${cacheKey} (${playersData[effectivePlayerId]?.name}), Opponents: [${opponents.join(', ')}]`);
         opponents.forEach(oppId => {
-            try {
-                const opponentWinPerc = getPlayerSwissWinPercentage(oppId, maxRoundNumber, currentStandingsCache); // Calls WP calc (v4.6)
-                if (typeof opponentWinPerc === 'number' && !isNaN(opponentWinPerc)) {
-                    const roundedOppWP = roundToPrecision(opponentWinPerc, ROUNDING_PRECISION); totalOpponentWinPercentageRounded += roundedOppWP; validOpponentCount++;
-                    if (DEBUG_STANDINGS) console.log(`      Opponent ${oppId} WP: ${opponentWinPerc.toFixed(ROUNDING_PRECISION + 2)} => Rounded: ${roundedOppWP.toFixed(ROUNDING_PRECISION)}`);
-                } else { console.warn(`OWP (${cacheKey}): Invalid WP for opp ${oppId}.`); }
-            } catch (e) { console.error(`OWP (${cacheKey}): Error for opp ${oppId}:`, e); }
+            try { const opponentWinPerc = getPlayerSwissWinPercentage(oppId, maxRoundNumber, currentStandingsCache); if (typeof opponentWinPerc === 'number' && !isNaN(opponentWinPerc)) { const roundedOppWP = roundToPrecision(opponentWinPerc, ROUNDING_PRECISION); totalOpponentWinPercentageRounded += roundedOppWP; validOpponentCount++; if (DEBUG_STANDINGS) console.log(`      Opponent ${oppId} WP: ${opponentWinPerc.toFixed(ROUNDING_PRECISION + 2)} => Rounded: ${roundedOppWP.toFixed(ROUNDING_PRECISION)}`); } else { console.warn(`OWP (${cacheKey}): Invalid WP for opp ${oppId}.`); } }
+            catch (e) { console.error(`OWP (${cacheKey}): Error for opp ${oppId}:`, e); }
         });
         const result = (validOpponentCount > 0) ? (totalOpponentWinPercentageRounded / validOpponentCount) : 0;
         if (!currentStandingsCache[cacheKey]) currentStandingsCache[cacheKey] = {}; currentStandingsCache[cacheKey].owp = result;
@@ -114,20 +130,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return result;
     }
 
-    /** Calculates OOWP with intermediate rounding. (v4.6) */
+    /** Calculates OOWP with intermediate rounding. (v4.7) */
     function calculateOOWP(playerId, maxRoundNumber, currentStandingsCache) {
          const effectivePlayerId = String(playerId); const cacheKey = `${effectivePlayerId}_R${maxRoundNumber}`; if (currentStandingsCache[cacheKey]?.oowp !== undefined) { return currentStandingsCache[cacheKey].oowp; }
         const opponents = getSwissOpponents(effectivePlayerId, maxRoundNumber); if (opponents.length === 0) { if (!currentStandingsCache[cacheKey]) currentStandingsCache[cacheKey] = {}; currentStandingsCache[cacheKey].oowp = 0; return 0; }
         let totalOpponentOWPRounded = 0; let validOpponentCount = 0;
         if (DEBUG_STANDINGS && playersData[effectivePlayerId]) console.log(`DEBUG: OOWP CALC for ${cacheKey} (${playersData[effectivePlayerId]?.name}), Opponents: [${opponents.join(', ')}]`);
         opponents.forEach(oppId => {
-            try {
-                const oppOWP = calculateOWP(oppId, maxRoundNumber, currentStandingsCache); // Calls OWP calc (v4.6)
-                 if (typeof oppOWP === 'number' && !isNaN(oppOWP)) {
-                    const roundedOppOWP = roundToPrecision(oppOWP, ROUNDING_PRECISION); totalOpponentOWPRounded += roundedOppOWP; validOpponentCount++;
-                     if (DEBUG_STANDINGS) console.log(`    Opponent ${oppId} OWP: ${oppOWP.toFixed(ROUNDING_PRECISION + 2)} => Rounded: ${roundedOppOWP.toFixed(ROUNDING_PRECISION)}`);
-                } else { console.warn(`OOWP (${cacheKey}): Invalid OWP for opp ${oppId}.`); }
-            } catch (e) { console.error(`OOWP (${cacheKey}): Error for opp ${oppId}:`, e); }
+            try { const oppOWP = calculateOWP(oppId, maxRoundNumber, currentStandingsCache); if (typeof oppOWP === 'number' && !isNaN(oppOWP)) { const roundedOppOWP = roundToPrecision(oppOWP, ROUNDING_PRECISION); totalOpponentOWPRounded += roundedOppOWP; validOpponentCount++; if (DEBUG_STANDINGS) console.log(`    Opponent ${oppId} OWP: ${oppOWP.toFixed(ROUNDING_PRECISION + 2)} => Rounded: ${roundedOppOWP.toFixed(ROUNDING_PRECISION)}`); } else { console.warn(`OOWP (${cacheKey}): Invalid OWP for opp ${oppId}.`); } }
+            catch (e) { console.error(`OOWP (${cacheKey}): Error for opp ${oppId}:`, e); }
         });
         const result = (validOpponentCount > 0) ? (totalOpponentOWPRounded / validOpponentCount) : 0;
         if (!currentStandingsCache[cacheKey]) currentStandingsCache[cacheKey] = {}; currentStandingsCache[cacheKey].oowp = result;
@@ -135,12 +146,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return result;
     }
 
-    /** Orchestrates calculation up to maxRoundNumber (v4.6) */
+    /** Orchestrates calculation up to maxRoundNumber (v4.7) */
     function calculateSwissStandingsForRound(maxRoundNumber) {
-        if (DEBUG_STANDINGS) console.log(`\n--- Calculating Standings for Round ${maxRoundNumber} (User Logic v4.6) ---`);
-        const currentStandingsCache = {}; const standingsData = []; const allPlayerIds = Object.keys(playersData);
-        if (allPlayerIds.length === 0) { return []; }
-        // totalSwissRounds not needed for this WP calc method
+        if (DEBUG_STANDINGS) console.log(`\n--- Calculating Standings for Round ${maxRoundNumber} (User Logic v4.7 - Record Fix) ---`);
+        const currentStandingsCache = {}; const standingsData = []; const allPlayerIds = Object.keys(playersData); if (allPlayerIds.length === 0) { return []; }
 
         if (DEBUG_STANDINGS) console.log(`\n--- STEP 1: Calculating Records & WPs (MatchWins / (Rounds-Byes)) for R${maxRoundNumber} ---`);
         allPlayerIds.forEach(playerId => { getPlayerSwissWinPercentage(playerId, maxRoundNumber, currentStandingsCache); });
@@ -150,8 +159,13 @@ document.addEventListener('DOMContentLoaded', () => {
         allPlayerIds.forEach(playerId => {
             const cacheKey = `${playerId}_R${maxRoundNumber}`; const playerInfo = playersData[playerId]; const cachedData = currentStandingsCache[cacheKey];
             if (cachedData?.record && cachedData.wp !== undefined && cachedData.owp !== undefined && playerInfo) {
-                try { const oowp = calculateOOWP(playerId, maxRoundNumber, currentStandingsCache); const record = cachedData.record; standingsData.push({ playerInfo, matchPoints: record.matchPoints, recordString: `${record.wins + record.byes}-${record.losses}${record.ties > 0 ? '-' + record.ties : ''}`, owp: cachedData.owp, oowp }); } // Display record including byes
-                catch (error) { console.error(`Error final OOWP step ${cacheKey}:`, error); }
+                try {
+                    const oowp = calculateOOWP(playerId, maxRoundNumber, currentStandingsCache);
+                    const record = cachedData.record;
+                    // >>> FIX: Use record.matchWins here for correct W-L-T display string <<<
+                    const displayWins = record.matchWins + record.byes; // Combine for display
+                    standingsData.push({ playerInfo, matchPoints: record.matchPoints, recordString: `${displayWins}-${record.losses}${record.ties > 0 ? '-' + record.ties : ''}`, owp: cachedData.owp, oowp });
+                } catch (error) { console.error(`Error final OOWP step ${cacheKey}:`, error); }
             } else { console.warn(`calculateSwissStandingsForRound: Skipping ${playerId} - missing data.`); }
         });
         if (DEBUG_STANDINGS) console.log(`--- Standings Calculation Complete for Round ${maxRoundNumber} ---`);
@@ -168,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("displayStandings: Starting display..."); if (!standingsTableBody) { return; } standingsTableBody.innerHTML = ''; if (!Array.isArray(sortedStandings) || sortedStandings.length === 0) { if (standingsContainer) standingsContainer.style.display = roundsData.some(r => r.type === "3") ? 'block' : 'none'; if(noStandingsMsg) noStandingsMsg.style.display = 'block'; return; } console.log(`displayStandings: Received ${sortedStandings.length} players.`); if(noStandingsMsg) noStandingsMsg.style.display = 'none'; if (standingsContainer) standingsContainer.style.display = 'block'; sortedStandings.forEach((data, index) => { try { const rank = index + 1; const row = standingsTableBody.insertRow(); const cellRank = row.insertCell(); cellRank.textContent = rank; cellRank.style.textAlign = 'center'; const cellName = row.insertCell(); cellName.textContent = data.playerInfo?.name || 'Unknown'; const cellRecord = row.insertCell(); cellRecord.textContent = data.recordString; cellRecord.style.textAlign = 'center'; const cellOWP = row.insertCell(); cellOWP.textContent = (data.owp * 100).toFixed(2); cellOWP.style.textAlign = 'right'; const cellOOWP = row.insertCell(); cellOOWP.textContent = (data.oowp * 100).toFixed(2); cellOOWP.style.textAlign = 'right'; } catch (error) { console.error(`Error displaying standings row ${index + 1}:`, error); } }); console.log("displayStandings: Display finished.");
     }
 
-    // --- UI Update and Display Functions (FULL - v4.6) ---
+    // --- UI Update and Display Functions (FULL - v4.7) ---
     function updateUI() {
         console.log("updateUI: Starting UI update...");
         try { // Pairings update
@@ -185,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (Object.keys(playersData).length > 0 && roundsData.length > 0) {
             try {
                 console.log("updateUI: >>> Starting Standings Update Logic <<<"); const swissRounds = roundsData.filter(r => r.type === "3");
-                if (swissRounds.length > 0) { const latestSwissRoundNumber = swissRounds[swissRounds.length - 1].roundNumber; console.log(`updateUI: Calculating standings as of Round ${latestSwissRoundNumber} (User Logic v4.6)`); const standingsData = calculateSwissStandingsForRound(latestSwissRoundNumber); const sortedStandings = sortStandings(standingsData); displayStandings(sortedStandings); /* ... show standings ... */ }
+                if (swissRounds.length > 0) { const latestSwissRoundNumber = swissRounds[swissRounds.length - 1].roundNumber; console.log(`updateUI: Calculating standings as of Round ${latestSwissRoundNumber} (User Logic v4.7)`); const standingsData = calculateSwissStandingsForRound(latestSwissRoundNumber); const sortedStandings = sortStandings(standingsData); displayStandings(sortedStandings); /* ... show standings ... */ }
                 else { console.log("updateUI: No swiss rounds."); /* ... No swiss rounds handling ... */ }
                 console.log("updateUI: >>> Standings section processing complete <<<");
             } catch (error) { console.error("updateUI: CRITICAL Error standings update:", error); /* ... Standings error handling ... */ }
@@ -196,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function getPlayerScoreBeforeRound(playerId, targetRoundNumber) {
         let wins = 0, losses = 0; const effectivePlayerId = String(playerId); if (!effectivePlayerId) return { wins, losses };
         for (const pastRound of roundsData) { if (pastRound.roundNumber >= targetRoundNumber) continue; for (const match of pastRound.matches) { const matchP1Id = String(match.player1Id); const matchP2Id = String(match.player2Id); if (match.isBye && matchP1Id === effectivePlayerId) { wins++; continue; } if (matchP1Id === effectivePlayerId) { if (match.outcome === 1) wins++; else if (match.outcome === 2) losses++; continue; } if (matchP2Id === effectivePlayerId) { if (match.outcome === 2) wins++; else if (match.outcome === 1) losses++; continue; } } }
-        return { wins, losses };
+        return { wins, losses }; // Returns wins including byes, suitable for pairing display
     }
     function displayRound(roundNumber) {
          const round = roundsData.find(r => r.roundNumber === roundNumber); if (!round) { /* error */ return; } if (currentRoundTitle) currentRoundTitle.textContent = `Round ${roundNumber} Pairings`; if (!pairingsTableBody) { return; } pairingsTableBody.innerHTML = ''; if (round.matches.length === 0) { /* no matches */ return; }
