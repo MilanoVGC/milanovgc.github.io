@@ -14,7 +14,7 @@
 		<autotablenumber>true</autotablenumber>
 		<overflowtablestart>20</overflowtablestart>
 	</data>
-	<timeelapsed>17706</timeelapsed>
+	<timeelapsed>22644</timeelapsed>
 	<players>
 		<player userid="5156949">
 			<firstname>Carlo</firstname>
@@ -538,32 +538,60 @@
 						</match>
 					</matches>
 				</round>
-				<round number="6" type="1" stage="2" >
+				<round number="6" type="1" stage="6" >
+					<timeleft>628</timeleft>
+					<matches>
+						<match outcome="1">
+							<player1 userid="3967343"/>
+							<player2 userid="4817682"/>
+							<timestamp>03/16/2025 16:09:33</timestamp>
+							<tablenumber>1</tablenumber>
+						</match>
+						<match outcome="2">
+							<player1 userid="3967130"/>
+							<player2 userid="1004619"/>
+							<timestamp>03/16/2025 16:19:14</timestamp>
+							<tablenumber>2</tablenumber>
+						</match>
+						<match outcome="1">
+							<player1 userid="1162846"/>
+							<player2 userid="3958728"/>
+							<timestamp>03/16/2025 15:44:24</timestamp>
+							<tablenumber>3</tablenumber>
+						</match>
+						<match outcome="1">
+							<player1 userid="1015144"/>
+							<player2 userid="3336441"/>
+							<timestamp>03/16/2025 16:23:50</timestamp>
+							<tablenumber>4</tablenumber>
+						</match>
+					</matches>
+				</round>
+				<round number="7" type="1" stage="6" >
+					<timeleft>2567</timeleft>
+					<matches>
+						<match outcome="1">
+							<player1 userid="3967343"/>
+							<player2 userid="1004619"/>
+							<timestamp>03/16/2025 17:02:00</timestamp>
+							<tablenumber>1</tablenumber>
+						</match>
+						<match outcome="1">
+							<player1 userid="1162846"/>
+							<player2 userid="1015144"/>
+							<timestamp>03/16/2025 17:02:01</timestamp>
+							<tablenumber>2</tablenumber>
+						</match>
+					</matches>
+				</round>
+				<round number="8" type="1" stage="2" >
 					<timeleft>3000</timeleft>
 					<matches>
 						<match outcome="0">
 							<player1 userid="3967343"/>
-							<player2 userid="4817682"/>
-							<timestamp>03/16/2025 15:39:57</timestamp>
+							<player2 userid="1162846"/>
+							<timestamp>03/16/2025 17:02:16</timestamp>
 							<tablenumber>1</tablenumber>
-						</match>
-						<match outcome="0">
-							<player1 userid="3967130"/>
-							<player2 userid="1004619"/>
-							<timestamp>03/16/2025 15:39:57</timestamp>
-							<tablenumber>2</tablenumber>
-						</match>
-						<match outcome="0">
-							<player1 userid="1162846"/>
-							<player2 userid="3958728"/>
-							<timestamp>03/16/2025 15:39:57</timestamp>
-							<tablenumber>3</tablenumber>
-						</match>
-						<match outcome="0">
-							<player1 userid="1015144"/>
-							<player2 userid="3336441"/>
-							<timestamp>03/16/2025 15:39:57</timestamp>
-							<tablenumber>4</tablenumber>
 						</match>
 					</matches>
 				</round>
