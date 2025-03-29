@@ -1,14 +1,46 @@
-<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>MilanoVGC - Tournament Results</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet"> <link rel="stylesheet" href="./assets/style.css"> </head> <body> <header class="main-header"> <div class="container"> <div class="logo">MilanoVGC</div> <nav> </nav> </div> </header>
-    <section id="hero">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MilanoVGC - Results</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Link the CSS -->
+    <link rel="stylesheet" href="./assets/style.css">
+    <!-- Favicon links (optional) -->
+    <!-- <link rel="icon" href="/favicon.ico" sizes="any"> -->
+    <!-- <link rel="icon" href="/favicon.svg" type="image/svg+xml"> -->
+</head>
+<body>
+    <header class="main-header">
         <div class="container">
-            <h1>Tournament Pairings & Standings</h1>
-            <p>Access live pairings, results, and final standings for MilanoVGC events.</p>
-            <!-- Link to the Admin Upload page -->
-            <p style="margin-top: 1.5rem; font-size: 0.9em; opacity: 0.8;"><a href="./admin_upload.html" style="color: var(--accent-color); border-bottom: 1px solid rgba(255, 255, 255, 0.5);">Admin Upload</a></p>
+             <div class="logo">MilanoVGC</div>
+             <nav>
+                 <!-- Static links if needed -->
+             </nav>
         </div>
-    </section>
-    <section id="tournament-list"> <div class="container"> <h2>Select Tournament</h2> <div class="tournament-grid">
-                <a href="./monkey-cup-vg-16-03-2025/" class="tournament-card">
-                    Monkey CUP VG 16.03.2025
-                </a>
-            </div> </div> </section> <footer class="main-footer"> <div class="container"> <p>© 2025 MilanoVGC. All rights reserved.</p> </div> </footer> </body> </html>
+    </header>
+
+    <!-- Main content area where JS will render views -->
+    <main id="app">
+        <div class="container">
+             <p class="loading-app">Loading application...</p>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <p>© <span id="current-year"></span> MilanoVGC. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Load the main application script -->
+    <script src="./assets/app.js"></script>
+    <script>
+        // Simple script to set current year in footer
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+    </script>
+</body>
+</html>
