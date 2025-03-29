@@ -117,20 +117,64 @@ main .container {
     color: #343a40;
 }
 
-#search-input {
-    padding: 10px 15px;
-    border: 1px solid #ced4da;
-    border-radius: 8px;
-    min-width: 250px;
-    font-size: 0.9em;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+/* Container for search input and clear button */
+.search-container {
+    position: relative; /* To position the button absolutely inside */
+    display: flex; /* Or keep it block if preferred */
+    align-items: center; /* Align button vertically with input */
+    /* Optional: Make it take available space if needed */
+    /* flex-grow: 1; */
+     min-width: 250px; /* Match original input min-width or adjust */
 }
 
+#search-input {
+    /* Make input take most space, leave room for button */
+    flex-grow: 1; /* Take available space */
+    /* Add padding on the right to prevent text from going under the button */
+    padding-right: 35px; /* Adjust this value based on button size */
+    /* Keep existing styles */
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-left: 15px;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    font-size: 0.9em;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    /* min-width removed here, handled by container */
+    width: 100%; /* Take width of container */
+}
+
+/* Clear Search Button Styling */
+#clear-search-btn {
+    position: absolute; /* Position relative to .search-container */
+    right: 5px;         /* Position inside the right edge */
+    top: 50%;           /* Center vertically */
+    transform: translateY(-50%); /* Fine-tune vertical centering */
+    display: none;      /* Initially hidden - JS will show it */
+    background: none;
+    border: none;
+    color: #6c757d;     /* Gray color */
+    cursor: pointer;
+    font-size: 1.5em;   /* Make the '×' larger */
+    line-height: 1;     /* Prevent extra vertical space */
+    padding: 0 5px;     /* Small padding */
+    font-weight: bold;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+#clear-search-btn:hover {
+    color: #343a40; /* Darker on hover */
+    opacity: 1;
+}
+
+/* Adjust focus style if needed */
 #search-input:focus {
     outline: none;
     border-color: #4a7dce;
     box-shadow: 0 0 0 3px rgba(74, 125, 206, 0.15);
 }
+
 
 /* --- Pairings Table Area (Tournament View) --- */
 #pairings-container {
@@ -313,7 +357,17 @@ span.winner::before {
 
      .controls { flex-direction: column; align-items: stretch; gap: 15px; }
      #round-tabs { justify-content: center; }
-     #search-input { min-width: unset; width: 100%; }
+     /* Search container takes full width */
+     .search-container {
+         min-width: unset;
+         width: 100%;
+     }
+     #search-input {
+         /* Adjust padding if needed */
+     }
+     #clear-search-btn {
+         /* Adjust font-size or padding if needed */
+     }
 
      #current-round-title { font-size: 1.4em; }
 
@@ -348,7 +402,9 @@ span.winner::before {
      .controls { padding-bottom: 15px; margin-bottom: 20px; }
 
      #round-tabs button { padding: 8px 12px; font-size: 0.85em; }
-     #search-input { padding: 9px 12px; }
+     .search-container { /* Inherits full width */ }
+     #search-input { padding: 9px 12px; padding-right: 30px; /* Ensure space for button */}
+     #clear-search-btn { font-size: 1.3em; right: 3px;}
 
      #current-round-title { font-size: 1.3em; margin-bottom: 15px;}
 
