@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 0 # Needed to list existing tournament folders
 
       # Step 2: Install xmlstarlet & jq
-      - name: Install xmlstarlet and jq # Keep jq in case needed later, though not strictly used in this version
+      - name: Install xmlstarlet and jq
         run: |
           sudo apt-get update
           sudo apt-get install -y xmlstarlet jq
@@ -68,15 +68,31 @@ jobs:
           echo "tournament_folder=$TOURNAMENT_FOLDER" >> $GITHUB_OUTPUT
           echo "tournament_name=${TOURNAMENT_NAME}" >> $GITHUB_OUTPUT # Output name without extra quotes
 
-      # Step 5: Update Root Index File (Simple List - Using Minimalist Card Style)
-      - name: Update Root Index File (Simple List)
-        env: # Make DISPLAY_NAME accessible within python script
+      # Step 5: Update Root Index File (Homepage) with Admin Link in Header
+      - name: Update Root Index File (Homepage)
+        env:
            DISPLAY_NAME_VAR: ""
         run: |
-          echo "Generating simple root index.html..."
+          echo "Generating root index.html (Homepage)..."
+          # Start HTML, including header with updated nav section
           cat << EOF > index.html
-          <!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>MilanoVGC - Tournament Results</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"> <link rel="stylesheet" href="./assets/style.css"> </head> <body> <header class="main-header"> <div class="container"> <div class="logo">MilanoVGC Tournaments</div> <nav> </nav> </div> </header> <main> <div class="container" id="tournament-list"> <h2 style="margin-bottom: 1rem;">Available Tournaments</h2> <div class="tournament-grid"> <!-- Keep class for styling -->
+          <!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>MilanoVGC - Tournament Results</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"> <link rel="stylesheet" href="./assets/style.css"> </head> <body>
+              <header class="main-header">
+                  <div class="container">
+                      <div class="logo">MilanoVGC Tournaments</div>
+                      <nav>
+                          <!-- Admin Upload Button -->
+                          <a href="./admin_upload.html" class="button button-header">Admin Upload</a>
+                      </nav>
+                  </div>
+              </header>
+              <main>
+                  <div class="container" id="tournament-list">
+                      <h2 style="margin-bottom: 1rem;">Available Tournaments</h2>
+                      <div class="tournament-grid"> <!-- Keep class for styling -->
           EOF
+
+          # Loop through folders and add tournament cards
           find . -maxdepth 1 -mindepth 1 -type d ! -path './assets' ! -path './incoming' ! -path './.github' ! -path './.git' -print0 | sort -rz | while IFS= read -r -d $'\0' dir; do
               FOLDER_NAME=$(basename "$dir")
               DISPLAY_NAME=$(grep -o -m 1 '<title>.* - Pairings & Standings</title>' "$FOLDER_NAME/index.html" 2>/dev/null | sed -e 's/<title>//' -e 's/ - Pairings & Standings<\/title>//' || echo "${FOLDER_NAME//-/ }")
@@ -90,13 +106,20 @@ jobs:
                           </a>
           CARD_EOF
           done
+
+          # Finish the main section and add footer
           cat << EOF >> index.html
                       </div> <!-- tournament-grid -->
-                      <p style="margin-top: 2rem; text-align: center; font-size: 0.9em;"><a href="./admin_upload.html">Admin Upload</a></p>
                   </div> <!-- tournament-list container -->
-              </main> <footer class="main-footer"> <div class="container"> <p>© $(date +%Y) MilanoVGC. All rights reserved.</p> </div> </footer> </body> </html>
+              </main>
+              <footer class="main-footer">
+                  <div class="container">
+                      <p>© $(date +%Y) MilanoVGC. All rights reserved.</p>
+                  </div>
+              </footer>
+          </body> </html>
           EOF
-          echo "Generated root index.html (Simple List)"
+          echo "Generated root index.html (Simple List with Admin link in header)"
 
       # Step 6: Commit and Push Changes
       - name: Commit and Push Changes
