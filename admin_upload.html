@@ -3,37 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin: Upload Tournament File</title>
-
-    <!-- Poppins Font Link -->
+    <title>Admin: Upload/Delete Tournament</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- Link to the main stylesheet -->
     <link rel="stylesheet" href="./assets/style.css">
     <style>
-        /* Additional styles specific to the upload page */
-        body { font-family: 'Poppins', sans-serif; } /* Ensure base font */
+        /* Styles from previous version */
+        body { font-family: 'Poppins', sans-serif; }
         main .container { max-width: 700px; }
         h1.page-title { text-align: center; margin-bottom: 2.5rem; font-weight: 700; font-size: 1.6em; }
         .form-group { margin-bottom: 1.5rem; }
         .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary); font-size: 0.9em; }
-        .form-group input[type="text"],
-        .form-group input[type="password"],
-        .form-group input[type="file"] {
-            width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: var(--border-radius); font-size: 1em; background-color: var(--bg-primary); transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease; font-family: inherit; /* Inherit body font */
-        }
+        .form-group input[type="text"], .form-group input[type="password"], .form-group input[type="file"], .form-group select { width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: var(--border-radius); font-size: 1em; background-color: var(--bg-primary); transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease; font-family: inherit; } /* Added select */
         .form-group input[type="file"] { padding: 8px 12px; background-color: var(--bg-secondary); cursor: pointer; }
-        .form-group input[type="text"]:focus,
-        .form-group input[type="password"]:focus { outline: none; border-color: var(--accent-color); box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2); }
+        .form-group input[type="text"]:focus, .form-group input[type="password"]:focus, .form-group select:focus { outline: none; border-color: var(--accent-color); box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2); }
         .status-box { margin-top: 2rem; padding: 16px; border: 1px solid var(--border-color); border-radius: var(--border-radius); background-color: var(--bg-secondary); min-height: 100px; white-space: pre-wrap; font-family: Menlo, Monaco, Consolas, 'Courier New', monospace; font-size: 0.85em; line-height: 1.5; color: var(--text-secondary); overflow-wrap: break-word; }
         .status-box .error { color: #e53e3e; font-weight: bold; }
         .status-box .success { color: #38a169; font-weight: bold; }
         .help-text { font-size: 0.8em; color: var(--text-secondary); margin-top: 6px; }
-        #uploadButton { padding: 10px 24px; font-size: 1em; font-weight: 600; cursor: pointer; background-color: var(--accent-color); color: white; border: none; border-radius: var(--border-radius); transition: background-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease; box-shadow: var(--shadow-dp1); font-family: inherit; }
-        #uploadButton:disabled { background-color: #A0AEC0; cursor: not-allowed; box-shadow: none; }
-        #uploadButton:hover:not(:disabled) { background-color: var(--accent-hover); box-shadow: var(--shadow-dp2); }
+        .button-primary { padding: 10px 24px; font-size: 1em; font-weight: 600; cursor: pointer; background-color: var(--accent-color); color: white; border: none; border-radius: var(--border-radius); transition: background-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease; box-shadow: var(--shadow-dp1); font-family: inherit; }
+        .button-primary:disabled { background-color: #A0AEC0; cursor: not-allowed; box-shadow: none; opacity: 0.7; }
+        .button-primary:hover:not(:disabled) { background-color: var(--accent-hover); box-shadow: var(--shadow-dp2); }
+        .button-danger { padding: 10px 24px; font-size: 1em; font-weight: 600; cursor: pointer; background-color: #e53e3e; /* Red */ color: white; border: none; border-radius: var(--border-radius); transition: background-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease; box-shadow: var(--shadow-dp1); font-family: inherit; }
+        .button-danger:disabled { background-color: #fc8181; cursor: not-allowed; box-shadow: none; opacity: 0.7; }
+        .button-danger:hover:not(:disabled) { background-color: #c53030; box-shadow: var(--shadow-dp2); }
+        hr { border: none; border-top: 1px solid var(--border-color); margin: 2.5rem 0; }
     </style>
 </head>
 <body>
@@ -45,7 +40,9 @@
     </header>
     <main>
         <div class="container">
-            <h1 class="page-title">TDF Upload</h1>
+            <!-- Upload Section -->
+            <h1 class="page-title">TDF Management</h1>
+            <h2>Upload New Tournament</h2>
             <form id="uploadForm">
                 <div class="form-group">
                     <label for="githubToken">GitHub Personal Access Token (PAT)</label>
@@ -56,8 +53,29 @@
                     <label for="tdfFile">Tournament Data File (.tdf)</label>
                     <input type="file" id="tdfFile" accept=".tdf" required>
                 </div>
-                <button type="submit" id="uploadButton" disabled>Upload & Process File</button>
+                <button type="submit" id="uploadButton" class="button-primary" disabled>Upload & Process File</button>
             </form>
+
+            <hr>
+
+            <!-- Delete Section -->
+            <h2>Delete Existing Tournament</h2>
+            <form id="deleteForm">
+                 <div class="form-group">
+                    <label for="deleteTournamentSelect">Select Tournament to Delete</label>
+                    <select id="deleteTournamentSelect" required>
+                        <option value="" disabled selected>Loading tournaments...</option>
+                        <!-- Options will be populated by JS -->
+                    </select>
+                 </div>
+                 <div class="form-group">
+                     <label for="githubTokenDelete">GitHub PAT (Required for Deletion)</label>
+                     <input type="password" id="githubTokenDelete" required autocomplete="current-password">
+                     <p class="help-text">Enter PAT again to confirm deletion action.</p>
+                 </div>
+                 <button type="submit" id="deleteButton" class="button-danger" disabled>Delete Selected Tournament</button>
+            </form>
+
             <div id="status" class="status-box">Status logs will appear here...</div>
         </div>
     </main>
