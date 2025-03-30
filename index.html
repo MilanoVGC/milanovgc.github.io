@@ -1,26 +1,22 @@
-<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>MilanoVGC - Tournament Results</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"> <link rel="stylesheet" href="./assets/style.css"> </head> <body>
+<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>MilanoVGC - Tournament Results</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet"> <link rel="stylesheet" href="./assets/style.css"> </head> <body>
     <header class="main-header">
         <div class="container">
-            <div class="logo">MilanoVGC Tournaments</div>
+            <div class="logo">MilanoVGC</div> <!-- Consistent Logo Text -->
             <nav>
-                <!-- Admin Upload Button -->
                 <a href="./admin_upload.html" class="button button-header">Admin Upload</a>
             </nav>
         </div>
     </header>
     <main>
-        <div class="container" id="tournament-list">
-            <h2 style="margin-bottom: 1rem;">Available Tournaments</h2>
-            <div class="tournament-grid"> <!-- Keep class for styling -->
+        <!-- Changed padding method: apply padding here instead of #tournament-list -->
+        <div class="container" style="padding-top: 32px; padding-bottom: 60px;">
+            <h2 style="margin-bottom: 24px; font-size: 1.8em; font-weight: 700;">Available Tournaments</h2>
+            <div class="tournament-grid">
                 <a href="./monkey-cup-vg-16-03-2025/" class="tournament-card">
                     Monkey CUP VG 16.03.2025
                 </a>
             </div> <!-- tournament-grid -->
-        </div> <!-- tournament-list container -->
+        </div> <!-- main container -->
     </main>
-    <footer class="main-footer">
-        <div class="container">
-            <p>© 2025 MilanoVGC. All rights reserved.</p>
-        </div>
-    </footer>
+    <footer class="main-footer"> <div class="container"> <p>© 2025 MilanoVGC. All rights reserved.</p> </div> </footer>
 </body> </html>
