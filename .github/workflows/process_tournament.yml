@@ -74,9 +74,14 @@ jobs:
            DISPLAY_NAME_VAR: ""
         run: |
           echo "Generating root index.html (Homepage)..."
-          # Start HTML, including header with updated nav section
+          # Start HTML, including header with updated nav section and correct font link
           cat << EOF > index.html
-          <!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>MilanoVGC - Tournament Results</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"> <link rel="stylesheet" href="./assets/style.css"> </head> <body>
+          <!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>MilanoVGC - Tournament Results</title>
+              <!-- Poppins Font Link -->
+              <link rel="preconnect" href="https://fonts.googleapis.com">
+              <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+              <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+              <link rel="stylesheet" href="./assets/style.css"> </head> <body>
               <header class="main-header">
                   <div class="container">
                       <div class="logo">MilanoVGC Tournaments</div>
