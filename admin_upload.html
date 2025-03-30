@@ -4,18 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin: Upload Tournament File</title>
+
+    <!-- Poppins Font Link -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <!-- Link to the main stylesheet -->
     <link rel="stylesheet" href="./assets/style.css">
     <style>
         /* Additional styles specific to the upload page */
-        main .container { max-width: 700px; /* Limit width for form */ }
+        body { font-family: 'Poppins', sans-serif; } /* Ensure base font */
+        main .container { max-width: 700px; }
         h1.page-title { text-align: center; margin-bottom: 2.5rem; font-weight: 700; font-size: 1.6em; }
         .form-group { margin-bottom: 1.5rem; }
         .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary); font-size: 0.9em; }
         .form-group input[type="text"],
         .form-group input[type="password"],
         .form-group input[type="file"] {
-            width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: var(--border-radius); font-size: 1em; background-color: var(--bg-primary); transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+            width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: var(--border-radius); font-size: 1em; background-color: var(--bg-primary); transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease; font-family: inherit; /* Inherit body font */
         }
         .form-group input[type="file"] { padding: 8px 12px; background-color: var(--bg-secondary); cursor: pointer; }
         .form-group input[type="text"]:focus,
@@ -24,8 +31,7 @@
         .status-box .error { color: #e53e3e; font-weight: bold; }
         .status-box .success { color: #38a169; font-weight: bold; }
         .help-text { font-size: 0.8em; color: var(--text-secondary); margin-top: 6px; }
-        /* Button styling */
-        #uploadButton { padding: 10px 24px; font-size: 1em; font-weight: 600; cursor: pointer; background-color: var(--accent-color); color: white; border: none; border-radius: var(--border-radius); transition: background-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease; box-shadow: var(--shadow-dp1); }
+        #uploadButton { padding: 10px 24px; font-size: 1em; font-weight: 600; cursor: pointer; background-color: var(--accent-color); color: white; border: none; border-radius: var(--border-radius); transition: background-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease; box-shadow: var(--shadow-dp1); font-family: inherit; }
         #uploadButton:disabled { background-color: #A0AEC0; cursor: not-allowed; box-shadow: none; }
         #uploadButton:hover:not(:disabled) { background-color: var(--accent-hover); box-shadow: var(--shadow-dp2); }
     </style>
