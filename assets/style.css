@@ -1,6 +1,6 @@
 /* --- Global Resets & Base --- */
 * { margin: 0; padding: 0; box-sizing: border-box; }
-:root { /* Minimalist Palette */ --text-primary: #1A202C; --text-secondary: #718096; --accent-color: #007bff; --accent-hover: #0056b3; --bg-primary: #FFFFFF; --bg-secondary: #F7FAFC; --border-color: #E2E8F0; --border-radius: 6px; --transition-speed: 0.2s; }
+:root { /* Minimalist Palette */ --text-primary: #1A202C; --text-secondary: #718096; --accent-color: #007bff; --accent-hover: #0056b3; --bg-primary: #FFFFFF; --bg-secondary: #F7FAFC; --border-color: #E2E8F0; --border-radius: 6px; --transition-speed: 0.2s; /* Material Elevation Shadows */ --shadow-dp1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); --shadow-dp2: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23); --shadow-dp4: 0 4px 8px rgba(0,0,0,0.19), 0 3px 10px rgba(0,0,0,0.22); --shadow-dp6: 0 6px 12px rgba(0,0,0,0.20), 0 4px 15px rgba(0,0,0,0.18); --shadow-dp8: 0 8px 17px rgba(0,0,0,0.20), 0 6px 20px rgba(0,0,0,0.19); }
 html { scroll-behavior: smooth; }
 body { font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif; line-height: 1.65; background-color: var(--bg-secondary); color: var(--text-primary); display: flex; flex-direction: column; min-height: 100vh; font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 .container { width: 100%; max-width: 1140px; margin: 0 auto; padding: 0 20px; }
@@ -8,14 +8,24 @@ a { color: var(--accent-color); text-decoration: none; font-weight: 500; transit
 a:hover { color: var(--accent-hover); }
 
 /* --- Header (Minimalist) --- */
-header { background-color: var(--bg-primary); color: var(--text-primary); padding: 18px 0; margin-bottom: 40px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border-color); }
+header.main-header, header:not(.main-header) { background-color: var(--bg-primary); color: var(--text-primary); padding: 18px 0; margin-bottom: 0; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border-color); box-shadow: none; }
+header:not(.main-header) { margin-bottom: 40px; text-align: left; }
 header .container { display: flex; justify-content: space-between; align-items: center; }
 .logo { font-size: 1.6em; font-weight: 700; letter-spacing: -0.5px; color: var(--text-primary); }
-header:not(.main-header) h1 { font-size: 2em; font-weight: 700; margin-bottom: 0.2rem; color: var(--text-primary); } /* For tournament page */
-header:not(.main-header) p { font-size: 1em; color: var(--text-secondary); margin-bottom: 0.5rem; } /* Location */
-header:not(.main-header) .container > p a { color: var(--text-secondary); font-weight: 500; font-size: 0.9em; border-bottom: none; transition: color var(--transition-speed) ease; } /* Back link */
+header:not(.main-header) h1 { font-size: 2em; font-weight: 700; margin-bottom: 0.2rem; color: var(--text-primary); }
+header:not(.main-header) p { font-size: 1em; color: var(--text-secondary); margin-bottom: 0.5rem; }
+header:not(.main-header) .container > p a { color: var(--text-secondary); font-weight: 500; font-size: 0.9em; border-bottom: none; transition: color var(--transition-speed) ease; }
 header:not(.main-header) .container > p a:hover { color: var(--text-primary); }
-#update-status { font-size: 0.75em; color: var(--text-secondary); opacity: 0.9; }
+#update-status { font-size: 0.75em; color: var(--text-secondary); opacity: 0.9; align-self: center; /* Align with logo/nav */ margin-left: 1rem; } /* Adjusted status style */
+header.main-header #update-status { display: none; }
+
+/* --- Header Button Styling --- */
+header nav { margin-left: auto; /* Push nav/button to the right */ }
+header nav .button.button-header { display: inline-block; background-color: var(--text-primary); /* Dark Background */ color: var(--bg-primary); /* White Text */ padding: 8px 16px; border-radius: var(--border-radius); font-size: 0.9em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: var(--shadow-dp1); transition: background-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease; line-height: 1.4; }
+header nav .button.button-header:hover { background-color: #3c4858; color: var(--bg-primary); text-decoration: none; box-shadow: var(--shadow-dp2); }
+
+/* --- Hero Section (Homepage) - Remove */
+#hero { display: none; }
 
 /* --- Tournament List Section (Homepage) --- */
 #tournament-list { padding: 40px 0 60px 0; }
@@ -62,13 +72,18 @@ footer.main-footer { margin-top: 60px; background-color: transparent; color: var
 
 /* --- Responsive Design --- */
 @media (max-width: 768px) {
-    header.main-header .container, header:not(.main-header) .container { flex-direction: column; gap: 8px; text-align: center; }
+    header.main-header .container { flex-direction: column; gap: 15px; /* Add gap */ }
+    header:not(.main-header) .container { flex-direction: column; gap: 8px; text-align: center; }
     header:not(.main-header) { margin-bottom: 24px; padding-bottom: 8px; }
     header:not(.main-header) .container { padding-bottom: 0;}
     #update-status { position: static; transform: none; margin-top: 8px; display: inline-block; }
+    header nav { margin-left: 0; } /* Reset margin for mobile stacking */
+    header nav .button.button-header { width: auto; /* Allow button to size naturally */ padding: 10px 20px; }
+
     #tournament-list { padding: 24px 0; } #tournament-list h2 { font-size: 1.4em; margin-bottom: 20px; } .tournament-grid { gap: 10px; } .tournament-card { padding: 16px; font-size: 1em; }
     main .container { padding: 20px 16px; } .controls { flex-direction: column; align-items: stretch; gap: 16px; } #round-tabs { justify-content: center; } .search-container { min-width: 100%; } .results-table th, .results-table td { padding: 12px 4px; font-size: 0.85em; } #current-round-title, #standings-title { font-size: 1.2em; }
 }
 @media (max-width: 576px) {
     body { font-size: 15px; } .logo { font-size: 1.4em; } header:not(.main-header) h1 { font-size: 1.6em; } .results-table th, .results-table td { padding: 10px 2px; font-size: 0.8em; } #round-tabs button { padding: 6px 10px; font-size: 0.85em; } #current-round-title, #standings-title { font-size: 1.1em; }
+    header nav .button.button-header { width: 100%; text-align: center; } /* Full width on very small screens */
 }
