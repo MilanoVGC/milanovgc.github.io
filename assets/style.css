@@ -1,11 +1,59 @@
 /* --- Global Resets & Base --- */
-* { margin: 0; padding: 0; box-sizing: border-box; }
-:root { /* Minimalist Palette */ --text-primary: #1A202C; --text-secondary: #718096; --accent-color: #007bff; --accent-hover: #0056b3; --bg-primary: #FFFFFF; --bg-secondary: #F7FAFC; --border-color: #E2E8F0; --border-radius: 6px; --transition-speed: 0.2s; /* Material Elevation Shadows */ --shadow-dp1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); --shadow-dp2: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23); }
-html { scroll-behavior: smooth; }
-body { font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif; line-height: 1.65; background-color: var(--bg-secondary); color: var(--text-primary); display: flex; flex-direction: column; min-height: 100vh; font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-.container { width: 100%; max-width: 1140px; margin: 0 auto; padding: 0 20px; }
-a { color: var(--accent-color); text-decoration: none; font-weight: 500; transition: color var(--transition-speed) ease; }
-a:hover { color: var(--accent-hover); }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    /* Minimalist Palette */
+    --text-primary: #1A202C; /* Very Dark Grey / Near Black */
+    --text-secondary: #718096; /* Medium Grey */
+    --accent-color: #007bff; /* Strong Blue Accent */
+    --accent-hover: #0056b3; /* Darker Blue Hover */
+    --bg-primary: #FFFFFF;
+    --bg-secondary: #F7FAFC; /* Very Light Grey */
+    --border-color: #E2E8F0; /* Light Grey Border/Divider */
+    --border-radius: 6px;
+    --transition-speed: 0.2s;
+    /* Material Elevation Shadows (Example - Not heavily used in this theme) */
+    --shadow-dp1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    --shadow-dp2: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    line-height: 1.65;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.container {
+    width: 100%;
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+a {
+   color: var(--accent-color);
+   text-decoration: none;
+   font-weight: 500;
+   transition: color var(--transition-speed) ease;
+}
+a:hover {
+    color: var(--accent-hover);
+}
 
 /* --- Consistent Header (App Bar Style) --- */
 header.main-header {
@@ -20,7 +68,7 @@ header.main-header {
 }
 header.main-header .container { display: flex; justify-content: space-between; align-items: center; }
 .logo { font-size: 1.6em; font-weight: 700; letter-spacing: -0.5px; color: var(--text-primary); }
-.logo a { color: inherit; text-decoration: none; } /* Make logo link inherit color */
+.logo a { color: inherit; text-decoration: none; }
 
 /* --- Header Button Styling --- */
 header nav { margin-left: auto; }
@@ -29,45 +77,25 @@ header nav a.button.button-header:hover { background-color: #3c4858; color: var(
 
 /* --- Tournament Info Header (Below Main Header on Tournament Pages) --- */
 .tournament-info-header {
-    background-color: var(--bg-secondary); /* Slightly different background */
+    background-color: var(--bg-secondary);
     padding: 32px 0;
     border-bottom: 1px solid var(--border-color);
-    margin-bottom: 40px; /* Space before main content */
+    margin-bottom: 40px;
 }
 .tournament-info-header .container {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start; /* Align items top */
+    align-items: flex-start;
     gap: 20px;
 }
-.tournament-info-header .info-left {
-    flex-grow: 1;
-}
-.tournament-info-header h1 { /* Tournament Name */
-    font-size: 2.2em;
-    font-weight: 700;
-    margin-bottom: 0.3rem;
-    color: var(--text-primary);
-    line-height: 1.2;
-}
-.tournament-info-header #tournament-organizer { /* Organizer */
-    font-size: 0.95em;
-    color: var(--text-secondary);
-    margin-bottom: 0;
-}
-.tournament-info-header .info-right {
-    flex-shrink: 0; /* Prevent location from shrinking too much */
-    text-align: right;
-}
-.tournament-info-header #tournament-location { /* Location */
-    font-size: 1em;
-    color: var(--text-secondary);
-    margin-bottom: 0;
-    padding-top: 5px; /* Align roughly with main title */
-}
+.tournament-info-header .info-left { flex-grow: 1; }
+.tournament-info-header h1 { font-size: 2.2em; font-weight: 700; margin-bottom: 0.3rem; color: var(--text-primary); line-height: 1.2; }
+.tournament-info-header #tournament-organizer { font-size: 0.95em; color: var(--text-secondary); margin-bottom: 0; }
+.tournament-info-header .info-right { flex-shrink: 0; text-align: right; }
+.tournament-info-header #tournament-location { font-size: 1em; color: var(--text-secondary); margin-bottom: 0; padding-top: 5px; }
 
 /* --- Tournament List Section (Homepage) --- */
-/* Container padding handled by main > .container */
+main .container#tournament-list { padding-top: 32px; padding-bottom: 60px; } /* Added ID for specificity */
 #tournament-list h2 { font-size: 1.8em; font-weight: 700; margin-bottom: 24px; color: var(--text-primary); text-align: left; }
 .tournament-grid { display: flex; flex-direction: column; gap: 12px; }
 .tournament-card { display: block; background-color: var(--bg-primary); padding: 20px 24px; border-radius: var(--border-radius); border: 1px solid var(--border-color); text-align: left; font-size: 1.1em; font-weight: 600; color: var(--text-primary); transition: border-color var(--transition-speed) ease, background-color var(--transition-speed) ease, color var(--transition-speed) ease; }
@@ -77,6 +105,7 @@ header nav a.button.button-header:hover { background-color: #3c4858; color: var(
 main .container#tournament-content { /* Target specific container */
     background: var(--bg-primary); padding: 32px; border-radius: var(--border-radius); border: 1px solid var(--border-color); box-shadow: none;
 }
+/* Controls container for tabs and search */
 .controls { margin-bottom: 32px; display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: center; padding-bottom: 24px; border-bottom: 1px solid var(--border-color); }
 #round-tabs { display: flex; gap: 8px; flex-grow: 1; flex-wrap: wrap; }
 #round-tabs button { padding: 8px 12px; cursor: pointer; border: none; background-color: transparent; color: var(--text-secondary); border-radius: var(--border-radius); font-weight: 600; font-size: 0.95em; text-transform: none; transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease; border-bottom: 2px solid transparent; margin-bottom: -1px; }
@@ -113,17 +142,55 @@ footer.main-footer { margin-top: 60px; background-color: transparent; color: var
 
 /* --- Responsive Design --- */
 @media (max-width: 768px) {
-    header.main-header .container { flex-direction: column; gap: 15px; } /* Stack header items */
+    /* Header stacking */
+    header.main-header .container { flex-direction: column; gap: 15px; }
     header nav { margin-left: 0; }
     header nav a.button.button-header { width: auto; padding: 10px 20px; }
 
-    .tournament-info-header .container { flex-direction: column; align-items: center; text-align: center; } /* Stack info */
+    /* Tournament Info Header stacking */
+    .tournament-info-header .container { flex-direction: column; align-items: center; text-align: center; }
     .tournament-info-header .info-right { text-align: center; }
     .tournament-info-header h1 { font-size: 1.8em; }
 
+    /* Tournament List Responsive */
     #tournament-list { padding: 24px 0; } #tournament-list h2 { font-size: 1.4em; margin-bottom: 20px; text-align: center; } .tournament-grid { gap: 10px; } .tournament-card { padding: 16px; font-size: 1em; }
-    main .container { padding: 20px 16px; } .controls { flex-direction: column; align-items: stretch; gap: 16px; } #round-tabs { justify-content: center; } .search-container { min-width: 100%; } .results-table th, .results-table td { padding: 12px 4px; font-size: 0.85em; } #current-round-title, #standings-title { font-size: 1.2em; }
+
+    /* Tournament Page Content Responsive */
+    .container { padding: 0 16px; } /* Adjust global container padding */
+    main .container#tournament-content {
+        padding: 20px 16px;
+        /* Apply flex to the container itself on mobile */
+        display: flex;
+        flex-direction: column; /* Stack children vertically */
+        align-items: stretch;   /* Make children take full width */
+        gap: 24px; /* Add gap between stacked elements */
+    }
+     #round-tabs {
+        /* Styles for tabs within the stacked layout */
+        display: flex;
+        flex-wrap: wrap; /* Allow wrapping */
+        justify-content: center; /* Center the tabs */
+        gap: 8px; /* Gap between tabs */
+        order: 1; /* Ensure tabs come first */
+        width: 100%; /* Take available width */
+        flex-grow: 0; /* Do not grow */
+    }
+    .search-container {
+        /* Styles for search within the stacked layout */
+        min-width: unset; /* Remove min-width */
+        flex-basis: auto;  /* Allow it to shrink */
+        width: 100%; /* Take full width */
+        order: 2; /* Ensure search comes after tabs */
+        max-width: none; /* Remove max width restriction */
+    }
+
+     /* Reduce padding on smaller screens for tables */
+     .results-table th,
+     .results-table td { padding: 12px 4px; font-size: 0.85em; }
+
+     #current-round-title, #standings-title { font-size: 1.2em; }
 }
+
 @media (max-width: 576px) {
     body { font-size: 15px; } .logo { font-size: 1.4em; }
     .tournament-info-header h1 { font-size: 1.6em; }
