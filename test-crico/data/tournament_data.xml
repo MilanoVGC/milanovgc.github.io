@@ -14,13 +14,15 @@
 		<autotablenumber>true</autotablenumber>
 		<overflowtablestart>14</overflowtablestart>
 	</data>
-	<timeelapsed>792</timeelapsed>
+	<timeelapsed>828</timeelapsed>
 	<players>
 		<player userid="123460">
 			<firstname>Edoardo</firstname>
 			<lastname>Giù Dal Pero</lastname>
 			<birthdate>02/27/1998</birthdate>
 			<starter>true</starter>
+			<order>3</order>
+			<seed>3</seed>
 			<creationdate>03/15/2025 14:55:51</creationdate>
 			<lastmodifieddate>03/15/2025 14:55:51</lastmodifieddate>
 		</player>
@@ -29,6 +31,8 @@
 			<lastname>Francano</lastname>
 			<birthdate>02/27/1994</birthdate>
 			<starter>true</starter>
+			<order>4</order>
+			<seed>2</seed>
 			<creationdate>03/15/2025 14:54:44</creationdate>
 			<lastmodifieddate>03/15/2025 14:54:44</lastmodifieddate>
 		</player>
@@ -77,6 +81,8 @@
 			<lastname>Muscolini</lastname>
 			<birthdate>02/27/1985</birthdate>
 			<starter>true</starter>
+			<order>1</order>
+			<seed>1</seed>
 			<creationdate>03/15/2025 14:54:14</creationdate>
 			<lastmodifieddate>03/15/2025 14:54:14</lastmodifieddate>
 		</player>
@@ -85,12 +91,14 @@
 			<lastname>De Meno</lastname>
 			<birthdate>02/27/1958</birthdate>
 			<starter>true</starter>
+			<order>2</order>
+			<seed>4</seed>
 			<creationdate>03/15/2025 14:55:09</creationdate>
 			<lastmodifieddate>03/15/2025 14:55:09</lastmodifieddate>
 		</player>
 	</players>
 	<pods>
-		<pod category="2" stage="0">
+		<pod category="2" stage="1">
 			<poddata>
 				<startingtable>1</startingtable>
 				<playoff3rd4th>false</playoff3rd4th>
@@ -146,37 +154,122 @@
 						</match>
 					</matches>
 				</round>
-				<round number="2" type="3" stage="2" >
-					<timeleft>3000</timeleft>
+				<round number="2" type="3" stage="6" >
+					<timeleft>2996</timeleft>
 					<matches>
 						<match outcome="5">
 							<player userid="123461"/>
 							<timestamp>03/15/2025 15:14:32</timestamp>
 							<tablenumber>0</tablenumber>
 						</match>
+						<match outcome="1">
+							<player1 userid="123457"/>
+							<player2 userid="123459"/>
+							<timestamp>03/15/2025 15:14:40</timestamp>
+							<tablenumber>1</tablenumber>
+						</match>
+						<match outcome="1">
+							<player1 userid="123460"/>
+							<player2 userid="123456"/>
+							<timestamp>03/15/2025 15:14:41</timestamp>
+							<tablenumber>2</tablenumber>
+						</match>
+						<match outcome="1">
+							<player1 userid="123458"/>
+							<player2 userid="123464"/>
+							<timestamp>03/15/2025 15:14:42</timestamp>
+							<tablenumber>3</tablenumber>
+						</match>
+						<match outcome="2">
+							<player1 userid="123462"/>
+							<player2 userid="123463"/>
+							<timestamp>03/15/2025 15:14:42</timestamp>
+							<tablenumber>4</tablenumber>
+						</match>
+					</matches>
+				</round>
+				<round number="3" type="3" stage="6" >
+					<timeleft>2996</timeleft>
+					<matches>
+						<match outcome="5">
+							<player userid="123462"/>
+							<timestamp>03/15/2025 15:14:45</timestamp>
+							<tablenumber>0</tablenumber>
+						</match>
+						<match outcome="1">
+							<player1 userid="123460"/>
+							<player2 userid="123457"/>
+							<timestamp>03/15/2025 15:14:51</timestamp>
+							<tablenumber>1</tablenumber>
+						</match>
+						<match outcome="2">
+							<player1 userid="123458"/>
+							<player2 userid="123459"/>
+							<timestamp>03/15/2025 15:14:49</timestamp>
+							<tablenumber>2</tablenumber>
+						</match>
+						<match outcome="1">
+							<player1 userid="123463"/>
+							<player2 userid="123461"/>
+							<timestamp>03/15/2025 15:14:50</timestamp>
+							<tablenumber>3</tablenumber>
+						</match>
+						<match outcome="1">
+							<player1 userid="123456"/>
+							<player2 userid="123464"/>
+							<timestamp>03/15/2025 15:14:49</timestamp>
+							<tablenumber>4</tablenumber>
+						</match>
+					</matches>
+				</round>
+				<round number="4" type="3" stage="8" >
+					<timeleft>2997</timeleft>
+					<matches>
+						<match outcome="5">
+							<player userid="123464"/>
+							<timestamp>03/15/2025 15:14:55</timestamp>
+							<tablenumber>0</tablenumber>
+						</match>
+						<match outcome="2">
+							<player1 userid="123460"/>
+							<player2 userid="123458"/>
+							<timestamp>03/15/2025 15:15:03</timestamp>
+							<tablenumber>1</tablenumber>
+						</match>
+						<match outcome="1">
+							<player1 userid="123457"/>
+							<player2 userid="123456"/>
+							<timestamp>03/15/2025 15:15:03</timestamp>
+							<tablenumber>2</tablenumber>
+						</match>
+						<match outcome="1">
+							<player1 userid="123459"/>
+							<player2 userid="123463"/>
+							<timestamp>03/15/2025 15:15:04</timestamp>
+							<tablenumber>3</tablenumber>
+						</match>
+						<match outcome="2">
+							<player1 userid="123462"/>
+							<player2 userid="123461"/>
+							<timestamp>03/15/2025 15:15:04</timestamp>
+							<tablenumber>4</tablenumber>
+						</match>
+					</matches>
+				</round>
+				<round number="5" type="1" stage="2" >
+					<timeleft>3000</timeleft>
+					<matches>
 						<match outcome="0">
 							<player1 userid="123457"/>
 							<player2 userid="123459"/>
-							<timestamp>03/15/2025 15:14:32</timestamp>
+							<timestamp>03/15/2025 15:15:08</timestamp>
 							<tablenumber>1</tablenumber>
 						</match>
 						<match outcome="0">
 							<player1 userid="123460"/>
-							<player2 userid="123456"/>
-							<timestamp>03/15/2025 15:14:32</timestamp>
+							<player2 userid="123458"/>
+							<timestamp>03/15/2025 15:15:08</timestamp>
 							<tablenumber>2</tablenumber>
-						</match>
-						<match outcome="0">
-							<player1 userid="123458"/>
-							<player2 userid="123464"/>
-							<timestamp>03/15/2025 15:14:32</timestamp>
-							<tablenumber>3</tablenumber>
-						</match>
-						<match outcome="0">
-							<player1 userid="123462"/>
-							<player2 userid="123463"/>
-							<timestamp>03/15/2025 15:14:32</timestamp>
-							<tablenumber>4</tablenumber>
 						</match>
 					</matches>
 				</round>
