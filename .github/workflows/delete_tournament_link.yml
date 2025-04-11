@@ -14,8 +14,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          # Use a specific PAT if GITHUB_TOKEN permissions are restricted, otherwise GITHUB_TOKEN is usually fine
-          # token: ${{ secrets.YOUR_PAT_WITH_WRITE_ACCESS }} # If needed
           token: ${{ secrets.GITHUB_TOKEN }} # Default token
 
       - name: Get Tournament Slug from Payload
@@ -48,8 +46,7 @@ jobs:
              exit 1
           fi
 
-          # Corrected awk command: Pass 'slug' variable using -v
-          # Also use single quotes (\047) in warning message for safety
+          # Revised awk command: Removed 'exit 0;' from the 'if (found == 0)' block
           awk -v slug_pattern="href=\"./${slug}/\"" -v slug="${slug}" '
           BEGIN { found=0 }
           {
@@ -57,7 +54,6 @@ jobs:
               if ($0 ~ slug_pattern) {
                   found=1;
                   # Print a comment indicating removal instead of the original line
-                  # Use the awk variable "slug" here
                   print "<!-- Link for " slug " removed by workflow -->";
               } else {
                   # Print lines that do not contain the pattern
@@ -68,13 +64,13 @@ jobs:
               if (found == 0) {
                   # Use awk variable "slug" here, escape single quotes with \047
                   print "WARNING: No link found for slug \047" slug "\047 in index.html. No changes made." > "/dev/stderr";
-                  exit 0; # Exit successfully, file won't be changed
+                  # REMOVED: exit 0;
               } else {
                   print "Link removal pattern applied successfully." > "/dev/stderr";
               }
           }' "$index_file" > "$temp_index_file"
 
-          # Check if awk command succeeded
+          # Check if awk command succeeded (exit status 0)
           if [ $? -ne 0 ]; then
               echo "ERROR: awk command failed to process $index_file." >&2
               rm -f "$temp_index_file" # Clean up temp file on error
