@@ -4,8 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const repoOwner = 'MilanoVGC';
     const repoName = 'milanovgc.github.io';
     const targetBranch = 'main';
-    const targetFolder = 'incoming'; // For uploads
-    // REMOVED: const rootIndexPath = 'index.html'; // No longer modifying index.html directly here
+    const targetFolder = 'incoming'; // Folder where new TDF files are uploaded
+    const deleteLinkWorkflowEventType = 'delete-tournament-link'; // Custom event type for the new workflow
     // --- END CONFIGURATION ---
 
     // --- DOM References ---
@@ -31,20 +31,17 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             entry.textContent = message;
         }
-        statusBox.appendChild(entry);
-        statusBox.scrollTop = statusBox.scrollHeight;
+        statusBox.insertBefore(entry, statusBox.firstChild);
     }
 
     function clearStatus() {
-        statusBox.innerHTML = '';
+        statusBox.innerHTML = 'Status logs will appear here...';
     }
 
     function readFileAsBase64(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => {
-                // result contains the Data URL "data:*;base64,base64String"
-                // We only need the base64String part after the comma
                 const base64String = reader.result.split(',')[1];
                 resolve(base64String);
             };
@@ -52,7 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.readAsDataURL(file);
         });
     }
-    // REMOVED: Base64 encode/decode helpers for HTML - not needed anymore here
 
     // --- Form State Checks ---
     function checkUploadFormState() {
@@ -69,9 +65,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = `${githubApiBase}${endpoint}`;
         const defaultHeaders = {
             "Authorization": `token ${token}`,
-            "Accept": "application/vnd.github.v3+json",
+            "Accept": "application/vnd.github.v3+json", // Default Accept header
         };
+
+        // Adjust Accept header for repository_dispatch
+        if (endpoint.endsWith('/dispatches')) {
+             defaultHeaders["Accept"] = "application/vnd.github.everest-preview+json"; // Required for dispatch endpoint
+        }
+
         if (options.body) {
+            if (typeof options.body !== 'string') {
+                 options.body = JSON.stringify(options.body);
+            }
             defaultHeaders['Content-Type'] = 'application/json';
         }
 
@@ -91,6 +96,11 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error(`API rate limit exceeded. Try again after ${resetTime.toLocaleTimeString()}.`);
         }
 
+        // Handle specific statuses for dispatch: 204 No Content is success
+        if (endpoint.endsWith('/dispatches') && response.status === 204) {
+            return { ok: true, status: response.status, data: null };
+        }
+
         // Handle file not found specifically for GET requests
         if (options.method === 'GET' && endpoint.includes('/contents/') && response.status === 404) {
             return { ok: false, status: 404, data: null, message: 'File not found (404)' };
@@ -98,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Handle successful deletion (200 OK or 204 No Content)
         if (options.method === 'DELETE' && (response.status === 200 || response.status === 204)) {
-            return { ok: true, status: response.status, data: null }; // Return null data on successful delete
+            return { ok: true, status: response.status, data: null };
         }
 
         let data = null;
@@ -108,9 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const contentType = response.headers.get("content-type");
                 if (contentType && contentType.includes("application/json")) {
                     data = await response.json();
-                } else {
-                    // Could potentially read as text if needed: await response.text();
-                    // console.log("Received non-JSON response");
                 }
             }
         } catch (e) {
@@ -122,9 +129,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!response.ok) {
-            // Use message from JSON response if available, otherwise use statusText
             const errorMessage = data?.message || response.statusText || `Request failed with status ${response.status}`;
-            console.error("API Error Response Body:", data); // Log the full error structure if available
+            console.error("API Error Response Body:", data);
             throw new Error(errorMessage);
         }
 
@@ -133,94 +139,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- Populate Tournament Delete Dropdown (using API) ---
+    // (No changes needed in this function from the previous version)
     async function fetchTournamentsAndPopulateDropdown() {
         deleteSelect.disabled = true;
         deleteSelect.innerHTML = '<option value="" disabled selected>Loading tournaments...</option>';
-
-        let token = githubTokenInput.value.trim();
+        let token = githubTokenInput.value.trim() || githubTokenDeleteInput.value.trim();
         if (!token) {
-            token = githubTokenDeleteInput.value.trim();
+            deleteSelect.innerHTML = '<option value="" disabled selected>Enter PAT to load list</option>';
+            checkDeleteFormState(); return;
         }
-
-        if (!token) {
-            deleteSelect.innerHTML = '<option value="" disabled selected>Enter PAT above to load</option>';
-            checkDeleteFormState();
-            return;
-        }
-
         try {
             const rootContentsEndpoint = `/repos/${repoOwner}/${repoName}/contents/?ref=${targetBranch}`;
             const { ok, data: rootContents, message: errMsg } = await githubApiRequest(rootContentsEndpoint, token, { method: 'GET' });
+            if (!ok) throw new Error(errMsg || "Could not fetch repository contents.");
+            if (!Array.isArray(rootContents)) throw new Error("Unexpected data format received.");
 
-            if (!ok) {
-                throw new Error(errMsg || "Could not fetch repository contents.");
-            }
-            if (!Array.isArray(rootContents)) {
-                console.warn("Received unexpected data format for root contents:", rootContents);
-                throw new Error("Unexpected data format received when fetching repository contents.");
-            }
-
-            // Define folders/files to exclude from the list
-            const excludeItems = ['.git', '.github', 'assets', 'incoming', 'data', 'README.md', 'index.html', 'admin_upload.html', '.gitignore', '_config.yml']; // Add common root files
-            const tournamentFolders = rootContents.filter(item =>
-                item.type === 'dir' && !excludeItems.includes(item.name) && !item.name.startsWith('_') && !item.name.startsWith('.')
-            );
+            const excludeItems = ['.git', '.github', 'assets', 'incoming', 'data', 'README.md', 'index.html', 'admin_upload.html', '.gitignore', '_config.yml', 'LICENSE'];
+            const tournamentFolders = rootContents.filter(item => item.type === 'dir' && !excludeItems.includes(item.name) && !item.name.startsWith('_') && !item.name.startsWith('.'));
 
             if (tournamentFolders.length > 0) {
-                // Sort alphabetically by folder name
                 tournamentFolders.sort((a, b) => a.name.localeCompare(b.name));
-
                 deleteSelect.innerHTML = '<option value="" disabled selected>Select a tournament...</option>';
                 tournamentFolders.forEach(t => {
                     const option = document.createElement('option');
-                    option.value = t.name; // Use the folder name (slug) as value
-                    // Create a display name from the slug
+                    option.value = t.name;
                     let displayName = t.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                     option.textContent = displayName;
                     deleteSelect.appendChild(option);
                 });
                 deleteSelect.disabled = false;
             } else {
-                deleteSelect.innerHTML = '<option value="" disabled selected>No tournament folders found</option>';
+                deleteSelect.innerHTML = '<option value="" disabled selected>No processed tournament folders found</option>';
             }
         } catch (error) {
             logStatus(`Error loading tournament list via API: ${error.message}`, "error");
-            if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-                logStatus("-> Check if PAT is valid and has 'repo' scope.", "error");
-            } else if (error.message.includes('404')) {
-                 logStatus("-> Repository or branch not found. Check config.", "error");
-            } else if (error.message.includes('API rate limit exceeded')) {
-                 logStatus("-> GitHub API rate limit hit. Please wait.", "error");
-            }
+            if (error.message.includes('401')) logStatus("-> Check PAT validity/scope.", "error");
+            else if (error.message.includes('404')) logStatus("-> Repository/branch not found.", "error");
+            else if (error.message.includes('API rate limit')) logStatus("-> API rate limit hit.", "error");
             deleteSelect.innerHTML = '<option value="" disabled selected>Error loading list</option>';
-        }
-        finally {
+        } finally {
             checkDeleteFormState();
         }
     }
 
     // --- Upload Logic ---
+    // (No changes needed in this function from the previous version)
     uploadForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         uploadButton.disabled = true;
         clearStatus();
         logStatus("Starting upload process...");
-
         const token = githubTokenInput.value.trim();
         const file = tdfFileInput.files[0];
         if (!token || !file) {
             logStatus("GitHub PAT and TDF file are required.", "error");
-            checkUploadFormState(); // Re-enable button if needed
-            return;
+            uploadButton.disabled = false; checkUploadFormState(); return;
         }
         const filename = file.name;
         if (!filename.toLowerCase().endsWith('.tdf')) {
              logStatus("Please select a valid .tdf file.", "error");
-             checkUploadFormState();
-             return;
+             uploadButton.disabled = false; checkUploadFormState(); return;
         }
-        const filePath = `${targetFolder}/${filename}`; // Place in incoming folder
-
+        const filePath = `${targetFolder}/${filename}`;
         let encodedContent;
         try {
             logStatus(`Reading file: ${filename}...`);
@@ -228,71 +208,43 @@ document.addEventListener('DOMContentLoaded', () => {
             logStatus("File read successfully.");
         } catch (error) {
             logStatus(`Error reading file: ${error.message}`, "error");
-            checkUploadFormState();
-            return;
+            uploadButton.disabled = false; checkUploadFormState(); return;
         }
-
         const endpoint = `/repos/${repoOwner}/${repoName}/contents/${filePath}`;
         const commitMessage = `Upload TDF: ${filename}`;
-
         try {
             logStatus(`Checking if file exists at '${filePath}'...`);
             let existingFileSha = null;
             try {
                  const { ok, data, status } = await githubApiRequest(endpoint + `?ref=${targetBranch}`, token, { method: 'GET' });
-                 if (ok && data?.sha) {
-                     existingFileSha = data.sha;
-                     logStatus(`File exists (SHA: ${existingFileSha.substring(0,7)}...). Will update.`);
-                 } else if (status === 404) {
-                     logStatus("File does not exist. Will create.");
-                 } else {
-                     logStatus(`Could not determine if file exists (Status: ${status}). Proceeding with create/update attempt.`, "warning");
-                 }
-             } catch (getError) {
-                  logStatus(`Error checking for existing file: ${getError.message}. Attempting upload anyway.`, "warning");
-             }
-
-            // Prepare request body (includes SHA only if updating)
-            const requestBody = {
-                message: commitMessage,
-                content: encodedContent,
-                branch: targetBranch
-            };
-            if (existingFileSha) {
-                requestBody.sha = existingFileSha;
-            }
-
+                 if (ok && data?.sha) { existingFileSha = data.sha; logStatus(`File exists. Will update.`); }
+                 else if (status === 404) { logStatus("File does not exist. Will create."); }
+                 else { logStatus(`Could not determine if file exists (Status: ${status}). Proceeding anyway.`, "warning"); }
+             } catch (getError) { logStatus(`Error checking for existing file: ${getError.message}. Attempting upload anyway.`, "warning"); }
+            const requestBody = { message: commitMessage, content: encodedContent, branch: targetBranch };
+            if (existingFileSha) requestBody.sha = existingFileSha;
             logStatus(`Uploading file via GitHub API to ${filePath}...`);
-            // Use PUT to create or update the file
-            const { ok, data: responseData, status } = await githubApiRequest(endpoint, token, {
-                method: 'PUT',
-                body: JSON.stringify(requestBody)
-            });
-
+            const { ok, data: responseData, status } = await githubApiRequest(endpoint, token, { method: 'PUT', body: requestBody });
             if (ok) {
-                const action = status === 201 ? 'created' : 'updated'; // 201 Created, 200 OK (updated)
+                const action = status === 201 ? 'created' : 'updated';
                 logStatus(`File successfully ${action} in incoming/ folder! Commit: ${responseData?.commit?.sha || 'N/A'}`, "success");
                 logStatus("GitHub Actions workflow should trigger shortly to process the file.");
-                tdfFileInput.value = ''; // Clear the file input
-            } else {
-                 // This case should be handled by githubApiRequest throwing, but as a fallback:
-                 throw new Error(`API responded with status ${status}, but ok was false.`);
-            }
+                tdfFileInput.value = '';
+                githubTokenInput.value = ''; // Consider clearing token on success
+            } else { throw new Error(`API responded with status ${status}, but ok was false.`); }
         } catch (error) {
             logStatus(`Upload failed: ${error.message}`, "error");
-            if (error.message.includes('401')) logStatus("-> Check PAT validity and 'repo' scope.", "error");
-            else if (error.message.includes('422')) logStatus("-> Unprocessable Entity. File might be too large or content invalid?", "error");
-            else if (error.message.includes('409')) logStatus("-> Conflict. Branch may have updated. Try again?", "error");
-            else if (error.message.includes('API rate limit exceeded')) logStatus("-> GitHub API rate limit hit. Please wait.", "error");
-        }
-        finally {
-            // Re-enable button and check form state
-            checkUploadFormState();
+            if (error.message.includes('401')) logStatus("-> Check PAT validity/scope.", "error");
+            else if (error.message.includes('422')) logStatus("-> Unprocessable Entity?", "error");
+            else if (error.message.includes('409')) logStatus("-> Conflict? Try again.", "error");
+            else if (error.message.includes('API rate limit')) logStatus("-> API rate limit hit.", "error");
+        } finally {
+            uploadButton.disabled = false; checkUploadFormState();
         }
     });
 
 
-    // --- Delete Logic (REVISED - Only deletes files, doesn't touch index.html) ---
+    // --- Delete Logic (REVISED - Deletes files, then triggers delete workflow) ---
     deleteForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         const selectedSlug = deleteSelect.value;
@@ -304,7 +256,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const tournamentName = deleteSelect.options[deleteSelect.selectedIndex].text;
-        if (!window.confirm(`ARE YOU SURE you want to permanently delete the files for tournament "${tournamentName}" (${selectedSlug})?\n\nThis CANNOT be undone. The link on the homepage will be removed the NEXT time a tournament is uploaded.`)) {
+        // Updated confirmation dialog
+        if (!window.confirm(`ARE YOU SURE you want to permanently delete the files for tournament "${tournamentName}" (${selectedSlug}) AND trigger the homepage link removal?\n\nThis CANNOT be undone.`)) {
             logStatus("Deletion cancelled.", "info");
             return;
         }
@@ -312,16 +265,15 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteButton.disabled = true;
         clearStatus();
         logStatus(`--- Starting Deletion for ${tournamentName} (${selectedSlug}) ---`);
+        let fileDeletionSuccess = false; // Flag to track if file deletion was successful
 
         try {
-            logStatus("Attempting to delete tournament files...");
-            // Define paths for the core files known to exist within the folder
+            // --- Step 1: Delete Tournament Files ---
+            logStatus("Step 1: Deleting tournament files...");
             const filesToDeletePaths = [
                 `${selectedSlug}/index.html`,
                 `${selectedSlug}/data/tournament_data.xml`
-                // Add other specific files if your workflow creates more (e.g., images, specific css/js)
             ];
-
             let filesActuallyDeleted = 0;
             let filesSkippedNotFound = 0;
             const deletePromises = [];
@@ -329,113 +281,110 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const filePath of filesToDeletePaths) {
                 const fileContentEndpoint = `/repos/${repoOwner}/${repoName}/contents/${filePath}?ref=${targetBranch}`;
                 logStatus(`Checking for file: ${filePath}...`);
-
                 try {
-                    // Pass the token to the check request
                     const { ok, data: fileData, status } = await githubApiRequest(fileContentEndpoint, token, { method: 'GET' });
-
                     if (ok && fileData && fileData.sha) {
-                        logStatus(`File found. Attempting to delete ${filePath} (SHA: ${fileData.sha.substring(0,7)}...)`);
+                        logStatus(`File found. Attempting to delete ${filePath}...`);
                         const deleteEndpoint = `/repos/${repoOwner}/${repoName}/contents/${filePath}`;
                         deletePromises.push(
                             githubApiRequest(deleteEndpoint, token, {
                                 method: 'DELETE',
-                                body: JSON.stringify({
-                                    message: `Delete file: ${filePath}`,
-                                    sha: fileData.sha,
-                                    branch: targetBranch
-                                })
+                                body: { message: `Delete file: ${filePath}`, sha: fileData.sha, branch: targetBranch }
                             }).then(deleteResult => {
-                                if(deleteResult.ok) {
-                                    logStatus(`Successfully deleted ${filePath}.`);
-                                    filesActuallyDeleted++;
-                                } else {
-                                     logStatus(`Failed to delete ${filePath}. Status: ${deleteResult.status}`, "error");
-                                }
-                                return deleteResult; // Pass result along
+                                if(deleteResult.ok) { logStatus(`Successfully deleted ${filePath}.`); filesActuallyDeleted++; }
+                                return deleteResult;
                             }).catch(deleteError => {
                                 logStatus(`Error during deletion of ${filePath}: ${deleteError.message}`, "error");
-                                return { ok: false, path: filePath }; // Mark as failed
+                                return { ok: false, path: filePath };
                             })
                         );
                     } else if (status === 404) {
-                         logStatus(`File ${filePath} not found (already deleted or never existed?). Skipping.`, "info");
+                         logStatus(`File ${filePath} not found. Skipping.`, "info");
                          filesSkippedNotFound++;
-                         deletePromises.push(Promise.resolve({ ok: true, path: filePath, skipped: true })); // Treat as success for cleanup purpose
+                         deletePromises.push(Promise.resolve({ ok: true, path: filePath, skipped: true }));
                     } else {
-                         logStatus(`Could not get required info (SHA) for ${filePath}. Status: ${status}. Cannot delete.`, "warning");
-                         deletePromises.push(Promise.resolve({ ok: false, path: filePath })); // Mark as failed
+                         logStatus(`Could not get info for ${filePath} (Status: ${status}). Cannot delete.`, "warning");
+                         deletePromises.push(Promise.resolve({ ok: false, path: filePath }));
                     }
                 } catch (getFileError) {
                      logStatus(`Error checking file ${filePath}: ${getFileError.message}`, "error");
-                     deletePromises.push(Promise.resolve({ ok: false, path: filePath })); // Mark as failed
+                     deletePromises.push(Promise.resolve({ ok: false, path: filePath }));
                 }
-            } // End for loop
+            }
 
-            // Wait for all attempted deletions
             const deleteResults = await Promise.all(deletePromises);
             const failedDeletes = deleteResults.filter(res => !res.ok);
 
             if (failedDeletes.length > 0) {
                 const failedPaths = failedDeletes.map(f => f.path).join(', ');
-                logStatus(`Could not delete all expected tournament files: ${failedPaths}. Manual cleanup might be needed.`, "error");
-                // Note: Even if some files fail, we proceed to the final message.
-                throw new Error(`Failed to delete some tournament files: ${failedPaths}`);
+                logStatus(`Could not delete all expected tournament files: ${failedPaths}.`, "error");
+                throw new Error(`Failed to delete some tournament files: ${failedPaths}. Aborting before triggering link removal.`);
             }
 
-            // Report final status based on results
-            if (filesActuallyDeleted > 0) {
-                 logStatus(`Successfully deleted ${filesActuallyDeleted} file(s) for tournament ${selectedSlug}.`, "success");
-            } else if (filesSkippedNotFound === filesToDeletePaths.length) {
-                 logStatus(`All expected files for ${selectedSlug} were already absent.`, "info");
-            } else if (filesActuallyDeleted === 0 && filesSkippedNotFound > 0) {
-                 logStatus(`No files were deleted, but ${filesSkippedNotFound} expected files were already absent.`, "info");
+            // Report file deletion status
+            if (filesActuallyDeleted > 0) logStatus(`Successfully deleted ${filesActuallyDeleted} file(s).`, "success");
+            else if (filesSkippedNotFound > 0) logStatus(`All expected files were already absent or skipped.`, "info");
+            else logStatus("No files were deleted, but no errors occurred.", "warning");
+
+            fileDeletionSuccess = true; // Mark file deletion as successful
+
+            // --- Step 2: Trigger the Delete Link Workflow ---
+            logStatus("Step 2: Triggering workflow to remove homepage link...");
+            const dispatchEndpoint = `/repos/${repoOwner}/${repoName}/dispatches`;
+            const dispatchPayload = {
+                event_type: deleteLinkWorkflowEventType, // Custom event type
+                client_payload: { // Data to send to the workflow
+                    slug: selectedSlug
+                }
+            };
+
+            const { ok: dispatchOk, status: dispatchStatus } = await githubApiRequest(dispatchEndpoint, token, {
+                method: 'POST',
+                body: dispatchPayload // API helper stringifies this
+            });
+
+            if (dispatchOk && dispatchStatus === 204) { // 204 No Content is success for dispatch
+                logStatus(`Successfully triggered '${deleteLinkWorkflowEventType}' workflow.`, "success");
+                logStatus("Homepage link removal may take a minute to process via GitHub Actions.");
             } else {
-                 // This case should be covered by failedDeletes check, but as a fallback
-                 logStatus("Deletion process completed, but no files were successfully deleted or confirmed absent.", "warning");
+                // Handle dispatch failure
+                logStatus(`Failed to trigger link deletion workflow (Status: ${dispatchStatus}).`, "error");
+                logStatus("Files were deleted, but the homepage link might remain. Manual removal or next upload needed.", "warning");
+                // Consider this a partial failure, maybe don't clear token?
+                throw new Error(`Failed to trigger ${deleteLinkWorkflowEventType} workflow.`);
             }
 
-            // --- REMOVED STEP 2: No direct modification of index.html here ---
-
-            // Inform user about homepage update timing
-            logStatus(`Homepage link for '${tournamentName}' will be removed the next time the processing workflow runs (after the next tournament upload).`, "info");
-            logStatus(`--- Deletion process for ${tournamentName} completed! ---`, "success");
-
-            // Refresh dropdown and clear token ONLY on full success (no failed deletes)
-            githubTokenDeleteInput.value = ''; // Clear token after successful use
+            // --- Final Success ---
+            logStatus(`--- Deletion process for ${tournamentName} completed successfully! ---`, "success");
+            githubTokenDeleteInput.value = ''; // Clear token only on full success
             await fetchTournamentsAndPopulateDropdown(); // Refresh list
 
         } catch (error) {
-            // Catch errors from the file deletion loop or other unexpected issues
             logStatus(`Deletion process encountered an error: ${error.message}`, "error");
-            if (error.message.includes('401')) logStatus("-> Check PAT validity and scope.", "error");
-            if (error.message.includes('409')) logStatus("-> Conflict error? File might have been modified. Try again.", "error");
-            if (error.message.includes('API rate limit exceeded')) logStatus("-> GitHub API rate limit hit. Please wait.", "error");
+            if (error.message.includes('401')) logStatus("-> Check PAT validity/scope.", "error");
+            if (error.message.includes('409')) logStatus("-> Conflict error? Try again.", "error");
+            if (error.message.includes('API rate limit')) logStatus("-> API rate limit hit.", "error");
              // Do not clear token or refresh list if there was a failure
+             // Log advice based on which step failed
+             if (!fileDeletionSuccess) {
+                 logStatus("-> File deletion failed. No workflow was triggered.", "info");
+             } else {
+                 logStatus("-> Link removal workflow trigger failed after file deletion.", "info");
+             }
         } finally {
-             // Always re-enable the button and check state, regardless of success/failure
-            checkDeleteFormState();
-            deleteButton.disabled = false; // Explicitly re-enable after process finishes
+             deleteButton.disabled = false; // Always re-enable button
+             checkDeleteFormState();
         }
     });
 
     // --- Initial Setup ---
-    // Populate dropdown when either token input changes
     githubTokenInput.addEventListener('input', () => { checkUploadFormState(); fetchTournamentsAndPopulateDropdown(); });
-    githubTokenDeleteInput.addEventListener('input', () => { checkDeleteFormState(); fetchTournamentsAndPopulateDropdown(); }); // Also trigger load on delete token input
-
+    githubTokenDeleteInput.addEventListener('input', () => { checkDeleteFormState(); fetchTournamentsAndPopulateDropdown(); });
     tdfFileInput.addEventListener('change', checkUploadFormState);
     deleteSelect.addEventListener('change', checkDeleteFormState);
-
-    // Initial state checks
     checkUploadFormState();
     checkDeleteFormState();
-
-    // Fetch tournaments ONLY if a token is present on load in either field
-    if (githubTokenInput.value.trim() || githubTokenDeleteInput.value.trim()) {
-        fetchTournamentsAndPopulateDropdown();
-    } else {
-        deleteSelect.innerHTML = '<option value="" disabled selected>Enter PAT above or below to load</option>';
-    }
+    if (githubTokenInput.value.trim() || githubTokenDeleteInput.value.trim()) { fetchTournamentsAndPopulateDropdown(); }
+    else { deleteSelect.innerHTML = '<option value="" disabled selected>Enter PAT to load list</option>'; }
 
 }); // End of DOMContentLoaded
