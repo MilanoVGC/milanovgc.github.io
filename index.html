@@ -13,7 +13,6 @@
     <header class="main-header">
         <div class="container">
             <div class="logo">MilanoVGC</div> <!-- Consistent Logo Text -->
-            <!-- THIS NAV SECTION MUST BE CORRECT IN THE COMMITTED FILE -->
             <nav>
                 <a href="https://dhsufi.github.io/PokemonTeamListCreator/" target="_blank" rel="noopener noreferrer" class="button button-header">Create Teamlist</a>
                 <a href="./admin_upload.html" class="button button-header">Admin Upload</a>
@@ -26,25 +25,17 @@
             <h2 style="margin-bottom: 24px; font-size: 1.8em; font-weight: 700;">Available Tournaments</h2>
             <!-- This div will contain the dynamically generated tournament links -->
             <div class="tournament-grid" id="tournament-grid-container">
-
-                <!-- Example entries (will be overwritten by workflow):
-                <a href="./test-crico/" class="tournament-card">
-                    Test Crico
-                </a>
-                <a href="./monkey-cup-vg-16-03-2025/" class="tournament-card">
-                    Monkey CUP VG 16.03.2025
-                </a>
-                -->
+                <!-- MAKE SURE THIS EXACT LINE EXISTS -->
+                <!-- TOURNAMENT_LIST_PLACEHOLDER -->
+                <!-- MAKE SURE THIS EXACT LINE EXISTS -->
             </div> <!-- tournament-grid -->
         </div> <!-- main container -->
     </main>
     <footer class="main-footer">
         <div class="container">
-            <!-- Updated year dynamically -->
             <p>© <span id="current-year"></span> MilanoVGC. All rights reserved.</p>
         </div>
     </footer>
-    <!-- Simple script to set the current year -->
     <script>document.getElementById('current-year').textContent = new Date().getFullYear();</script>
 </body>
 </html>
