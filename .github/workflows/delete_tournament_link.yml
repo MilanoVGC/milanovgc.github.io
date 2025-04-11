@@ -14,7 +14,9 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }} # Use the default GITHUB_TOKEN for checkout and commit
+          # Use a specific PAT if GITHUB_TOKEN permissions are restricted, otherwise GITHUB_TOKEN is usually fine
+          # token: ${{ secrets.YOUR_PAT_WITH_WRITE_ACCESS }} # If needed
+          token: ${{ secrets.GITHUB_TOKEN }} # Default token
 
       - name: Get Tournament Slug from Payload
         id: get_slug
@@ -24,9 +26,8 @@ jobs:
             echo "ERROR: No slug provided in the event payload." >&2
             exit 1
           fi
-          # Basic validation/sanitization (optional, but good practice)
-          # Allow alphanumeric and hyphens
-          if [[ ! "$slug_to_delete" =~ ^[a-zA-Z0-9-]+$ ]]; then
+          # Basic validation/sanitization
+          if [[ ! "$slug_to_delete" =~ ^[a-zA-Z0-9._-]+$ ]]; then # Allow ., _, -
              echo "ERROR: Invalid slug format received: $slug_to_delete" >&2
              exit 1
           fi
@@ -38,7 +39,7 @@ jobs:
         run: |
           slug="${{ steps.get_slug.outputs.slug }}"
           index_file="index.html"
-          temp_index_file="temp_index.html.$$"
+          temp_index_file="temp_index.html.$$" # Use process ID for temp file uniqueness
 
           echo "Attempting to remove link for slug '$slug' from $index_file"
 
@@ -47,16 +48,17 @@ jobs:
              exit 1
           fi
 
-          # Use awk to find the line containing the specific href and skip it.
-          # This assumes the entire <a ...>...</a> tag for a tournament fits on one line.
-          # If tags can span multiple lines, this approach needs to be more complex.
-          awk -v slug_pattern="href=\"./${slug}/\"" '
+          # Corrected awk command: Pass 'slug' variable using -v
+          # Also use single quotes (\047) in warning message for safety
+          awk -v slug_pattern="href=\"./${slug}/\"" -v slug="${slug}" '
           BEGIN { found=0 }
           {
+              # Check if the current line contains the href pattern
               if ($0 ~ slug_pattern) {
-                  # Found the line, skip printing it
                   found=1;
-                  print "<!-- Link for " slug " removed by workflow -->" # Optional comment
+                  # Print a comment indicating removal instead of the original line
+                  # Use the awk variable "slug" here
+                  print "<!-- Link for " slug " removed by workflow -->";
               } else {
                   # Print lines that do not contain the pattern
                   print $0;
@@ -64,25 +66,30 @@ jobs:
           }
           END {
               if (found == 0) {
-                  print "WARNING: No link found for slug '" slug "' in index.html. No changes made." > "/dev/stderr";
-                  # Exit with a specific code or set an output if needed
-                  exit 0; # Exit successfully even if not found, file won't be changed
+                  # Use awk variable "slug" here, escape single quotes with \047
+                  print "WARNING: No link found for slug \047" slug "\047 in index.html. No changes made." > "/dev/stderr";
+                  exit 0; # Exit successfully, file won't be changed
               } else {
-                  print "Link removal pattern applied." > "/dev/stderr";
+                  print "Link removal pattern applied successfully." > "/dev/stderr";
               }
           }' "$index_file" > "$temp_index_file"
 
-          # Check if awk succeeded and the temp file was created
-          if [ $? -ne 0 ] || [ ! -f "$temp_index_file" ]; then
-            echo "ERROR: Failed to process $index_file with awk." >&2
-            rm -f "$temp_index_file"
-            exit 1
+          # Check if awk command succeeded
+          if [ $? -ne 0 ]; then
+              echo "ERROR: awk command failed to process $index_file." >&2
+              rm -f "$temp_index_file" # Clean up temp file on error
+              exit 1
+          elif [ ! -s "$temp_index_file" ]; then
+              # Check if temp file is empty (e.g., if index.html was empty)
+              echo "ERROR: Processed file $temp_index_file is empty. Aborting." >&2
+              rm -f "$temp_index_file"
+              exit 1
           fi
 
           # Check if the file content actually changed
           if cmp -s "$index_file" "$temp_index_file"; then
              echo "No changes detected in $index_file after processing. Link might have been absent."
-             rm "$temp_index_file"
+             rm "$temp_index_file" # Clean up temp file
              echo "changed=false" >> $GITHUB_OUTPUT
           else
              echo "Changes detected. Replacing original $index_file."
@@ -97,9 +104,15 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add index.html
-          git commit -m "Remove link for deleted tournament: ${slug}"
-          echo "Pushing updated index.html to branch ${{ github.ref_name }}"
-          git push origin ${{ github.ref_name }} # Push to the branch the workflow ran on (likely main)
+          # Check staging area before committing
+          if git diff --staged --quiet; then
+            echo "No changes staged for commit. This might indicate an issue."
+          else
+            git commit -m "Remove link for deleted tournament: ${slug}"
+            echo "Pushing updated index.html to branch ${{ github.ref_name }}"
+            # Retry push slightly in case of brief conflicts (optional)
+            git push origin ${{ github.ref_name }} || (sleep 5 && git push origin ${{ github.ref_name }})
+          fi
 
       - name: No Changes to Commit
         if: steps.remove_link.outputs.changed == 'false'
