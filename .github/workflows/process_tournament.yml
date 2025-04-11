@@ -103,8 +103,8 @@ jobs:
           echo "Generating $slug/index.html..."
 
           # Use cat with HEREDOC to create the file content.
-          # Use single quotes around 'EOF' to prevent shell variable expansion inside the HEREDOC,
-          # except for explicitly included variables like ${escaped_title} and ${slug}.
+          # Keep EOF unquoted to allow ${escaped_title} substitution.
+          # Escape the $ in the JavaScript part to prevent shell substitution there.
           cat <<EOF > "$slug/index.html"
           <!DOCTYPE html>
           <html lang="en">
@@ -112,7 +112,7 @@ jobs:
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <!-- Use the extracted and escaped tournament name in the title -->
-              <title>${escaped_title}</title>
+              <title>${escaped_title}</title> <!-- Shell substitutes this -->
               <!-- Link to shared assets, relative path -->
               <link rel="preconnect" href="https://fonts.googleapis.com">
               <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -204,9 +204,8 @@ jobs:
               <!-- Footer (Consistent) -->
               <footer class="main-footer">
                 <div class="container">
-                    <p>© <span id="current-year">${new Date().getFullYear()}</span> MilanoVGC. All rights reserved.</p>
-                    <!-- Optional: Add link back to homepage -->
-                    <!-- <p><a href="../">Back to Tournament List</a></p> -->
+                    <!-- Escape the $ here -->
+                    <p>© <span id="current-year">\${new Date().getFullYear()}</span> MilanoVGC. All rights reserved.</p>
                 </div>
               </footer>
           
@@ -216,6 +215,7 @@ jobs:
                   // Set current year in footer
                   const yearSpan = document.getElementById('current-year');
                   if (yearSpan) {
+                      // This JS runs in the browser, it doesn't need the year hardcoded here
                       yearSpan.textContent = new Date().getFullYear();
                   }
               </script>
@@ -228,6 +228,7 @@ jobs:
              exit 1
           fi
           echo "$slug/index.html generated successfully."
+        shell: bash
 
       - name: Move and Rename TDF File
         run: |
@@ -251,7 +252,6 @@ jobs:
           else
              echo "WARNING: Incoming directory still contains files."
           fi
-
 
       - name: Regenerate Root Index Page (Template Method)
         run: |
@@ -303,7 +303,7 @@ jobs:
               # Escape HTML characters in name
               safe_display_name=$(python3 -c "import html; print(html.escape('''$display_name'''))")
 
-              # Append HTML link string
+              # Append HTML link string, ensuring proper formatting and newlines
               tournament_links_html+=$(printf '        <a href="./%s/" class="tournament-card">\n            %s\n        </a>\n' "$slug" "$safe_display_name")
           done
 
@@ -317,16 +317,31 @@ jobs:
           log_message "Injecting generated links into template..."
           awk -v placeholder="$PLACEHOLDER" -v links="$tournament_links_html" '
           BEGIN { replaced=0 } {
-              if (index($0, placeholder)) { print links; replaced=1; }
-              else { print $0; }
+              # Use index() for robust placeholder finding, even with leading/trailing whitespace on the line
+              if (index($0, placeholder)) {
+                  # Print the generated links when placeholder is found
+                  print links;
+                  replaced=1;
+              } else {
+                  # Print other lines unmodified
+                  print $0;
+              }
           }
-          END { if (replaced == 0) { print "ERROR: Placeholder not found!" > "/dev/stderr"; exit 1; } }
+          END {
+              # Check if the placeholder was ever found and replaced
+              if (replaced == 0) {
+                  print "ERROR: Placeholder '" placeholder "' was not found during awk processing!" > "/dev/stderr";
+                  exit 1;
+              }
+          }
           ' "$INDEX_HTML_FILE" > "$TEMP_INDEX_FILE"
 
+          # Check awk exit status and if the temp file was created and is not empty
           if [ $? -ne 0 ]; then log_message "ERROR: awk processing failed."; rm -f "$TEMP_INDEX_FILE"; exit 1; fi
-          if [ ! -s "$TEMP_INDEX_FILE" ]; then log_message "ERROR: Temp file is empty."; rm -f "$TEMP_INDEX_FILE"; exit 1; fi
+          if [ ! -s "$TEMP_INDEX_FILE" ]; then log_message "ERROR: Temp file is empty after awk processing."; rm -f "$TEMP_INDEX_FILE"; exit 1; fi
 
           # --- Overwrite Original Index if Changed ---
+          # Compare binary content to avoid issues with whitespace/line ending changes
           if ! cmp -s "$INDEX_HTML_FILE" "$TEMP_INDEX_FILE"; then
              log_message "Changes detected. Replacing original $INDEX_HTML_FILE."
              mv "$TEMP_INDEX_FILE" "$INDEX_HTML_FILE"
@@ -350,16 +365,19 @@ jobs:
           git add index.html # Add the potentially modified root index
 
           # Check if the original TDF file still exists in incoming (it shouldn't after mv)
-          # If it does, remove it explicitly. Git mv might not register if target is untracked initially.
+          # If it does, remove it explicitly from staging area.
           tdf_path_in_incoming="incoming/$(basename ${{ steps.find_tdf.outputs.tdf_path }})"
-          if [ -f "$tdf_path_in_incoming" ]; then
-              echo "Explicitly removing processed TDF from incoming staging area..."
-              git rm "$tdf_path_in_incoming"
+          if git ls-files --error-unmatch "$tdf_path_in_incoming" > /dev/null 2>&1; then
+              echo "Explicitly removing processed TDF '$tdf_path_in_incoming' from staging area..."
+              git rm --cached "$tdf_path_in_incoming" # Remove from index but keep file if mv failed somehow locally
           fi
+          # Also ensure the source file is gone locally if mv failed but we proceed
+          rm -f "$tdf_path_in_incoming"
 
-          # Check if there are changes to commit
+
+          # Check if there are changes staged for commit
           if git diff --staged --quiet; then
-            echo "No changes to commit."
+            echo "No changes staged for commit."
           else
             echo "Committing changes..."
             # Use extracted tournament name in commit message if available
