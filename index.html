@@ -1,47 +1,22 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MilanoVGC - Tournament Results</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./assets/style.css">
-</head>
-<body>
+<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>MilanoVGC - Tournament Results</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet"> <link rel="stylesheet" href="./assets/style.css"> </head> <body>
     <header class="main-header">
         <div class="container">
             <div class="logo">MilanoVGC</div> <!-- Consistent Logo Text -->
             <nav>
-                <!-- Added "Create Teamlist" link with same styling -->
-                <a href="https://dhsufi.github.io/PokemonTeamListCreator/" target="_blank" rel="noopener noreferrer" class="button button-header">Create Teamlist</a>
                 <a href="./admin_upload.html" class="button button-header">Admin Upload</a>
             </nav>
         </div>
     </header>
     <main>
-        <!-- Container for the tournament list -->
-        <div class="container" id="tournament-list" style="padding-top: 32px; padding-bottom: 60px;">
+        <!-- Changed padding method: apply padding here instead of #tournament-list -->
+        <div class="container" style="padding-top: 32px; padding-bottom: 60px;">
             <h2 style="margin-bottom: 24px; font-size: 1.8em; font-weight: 700;">Available Tournaments</h2>
-            <!-- This div will contain the dynamically generated tournament links -->
-            <div class="tournament-grid" id="tournament-grid-container">
-                <!-- TOURNAMENT_LIST_PLACEHOLDER -->
-                <!-- Example entry (will be overwritten by workflow):
+            <div class="tournament-grid">
                 <a href="./test-crico/" class="tournament-card">
                     Test Crico
                 </a>
-                -->
             </div> <!-- tournament-grid -->
         </div> <!-- main container -->
     </main>
-    <footer class="main-footer">
-        <div class="container">
-            <!-- Updated year dynamically -->
-            <p>© <span id="current-year"></span> MilanoVGC. All rights reserved.</p>
-        </div>
-    </footer>
-    <!-- Simple script to set the current year -->
-    <script>document.getElementById('current-year').textContent = new Date().getFullYear();</script>
-</body>
-</html>
+    <footer class="main-footer"> <div class="container"> <p>© 2025 MilanoVGC. All rights reserved.</p> </div> </footer>
+</body> </html>
