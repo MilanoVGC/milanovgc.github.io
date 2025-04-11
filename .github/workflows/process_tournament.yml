@@ -33,7 +33,6 @@ jobs:
           fi
           echo "Processing file: $tdf_file"
           echo "tdf_path=$tdf_file" >> $GITHUB_OUTPUT
-          # Also output just the filename for later use
           echo "tdf_filename=$(basename "$tdf_file")" >> $GITHUB_OUTPUT
 
 
@@ -166,34 +165,39 @@ jobs:
           slug="${{ steps.extract_info.outputs.slug }}"
           tdf_path="${{ steps.find_tdf.outputs.tdf_path }}" # Full path e.g., incoming/file.tdf
           destination_path="$slug/data/tournament_data.xml"
-
           echo "Moving '$tdf_path' to '$destination_path'..."
-          # Use -v for verbose output if needed: mv -v "$tdf_path" "$destination_path"
           mv "$tdf_path" "$destination_path"
-
-          # Verify move was successful
-          if [ ! -f "$destination_path" ]; then
-             echo "ERROR: Failed to move TDF file. Destination '$destination_path' not found." >&2
-             exit 1
-          fi
-          # Verify source is gone (mv should remove it)
-          if [ -f "$tdf_path" ]; then
-             echo "WARNING: Source file '$tdf_path' still exists after mv command. Attempting removal." >&2
-             # We will handle removal explicitly in the commit step just in case
-          fi
+          if [ ! -f "$destination_path" ]; then echo "ERROR: Failed to move TDF file." >&2; exit 1; fi
+          if [ -f "$tdf_path" ]; then echo "WARNING: Source file '$tdf_path' still exists after mv." >&2; fi
           echo "TDF file moved/renamed successfully."
+        shell: bash # Added shell specifier for consistency
 
       - name: Regenerate Root Index Page (Template Method)
+        id: regen_index # Added id for potential future use
         run: |
           set -e
           set -o pipefail
           INDEX_HTML_FILE="index.html"
-          PLACEHOLDER="<!-- TOURNAMENT_LIST_PLACEHOLDER -->"
+          # Define start/end markers for the target div reliably
+          # Ensure these EXACTLY match your index.html
+          START_MARKER_PATTERN='<div class="tournament-grid" id="tournament-grid-container">'
+          END_MARKER_PATTERN='</div> <!-- tournament-grid -->'
           TEMP_INDEX_FILE="temp_index.html.$$"
           log_message() { echo "[Regen Index Step] $1"; }
+
           log_message "Starting regeneration of $INDEX_HTML_FILE..."
           if [ ! -f "$INDEX_HTML_FILE" ]; then log_message "ERROR: Template file '$INDEX_HTML_FILE' not found!"; exit 1; fi
-          if ! grep -qF "$PLACEHOLDER" "$INDEX_HTML_FILE"; then log_message "ERROR: Placeholder '$PLACEHOLDER' not found!"; exit 1; fi
+          if ! grep -qF "$START_MARKER_PATTERN" "$INDEX_HTML_FILE"; then
+              log_message "ERROR: Start marker pattern not found in '$INDEX_HTML_FILE'!"
+              log_message "Expected: $START_MARKER_PATTERN"
+              exit 1
+          fi
+          if ! grep -qF "$END_MARKER_PATTERN" "$INDEX_HTML_FILE"; then
+              log_message "ERROR: End marker pattern not found in '$INDEX_HTML_FILE'!"
+               log_message "Expected: $END_MARKER_PATTERN"
+              exit 1
+          fi
+
           log_message "Scanning for valid tournament folders..."
           tournament_links_html=""
           # Use Process Substitution for the loop
@@ -206,7 +210,8 @@ jobs:
                   display_name=$(echo "$slug" | sed -e 's/-/ /g' -e 's/\b\(.\)/\u\1/g')
               fi
               safe_display_name=$(python3 -c "import html; print(html.escape('''$display_name'''))")
-              tournament_links_html+=$(printf '        <a href="./%s/" class="tournament-card">\n            %s\n        </a>\n' "$slug" "$safe_display_name")
+              # Adjust indentation here to match target location in index.html
+              tournament_links_html+=$(printf '                <a href="./%s/" class="tournament-card">\n                    %s\n                </a>\n' "$slug" "$safe_display_name")
           done < <(find . -maxdepth 1 -mindepth 1 -type d \
                       ! -name '.git' ! -name '.github' ! -name 'assets' ! -name 'incoming' ! -name 'data' ! -name 'node_modules' \
                       -exec test -f '{}/index.html' \; \
@@ -215,32 +220,54 @@ jobs:
 
           if [ -z "$tournament_links_html" ]; then
               log_message "WARNING: No valid tournament folders found. List will be empty."
+              # Make sure empty list replacement is just an empty string or a comment
+              tournament_links_html="                <!-- No tournaments found -->"
           fi
-          log_message "Injecting generated links into template..."
-          awk -v placeholder="$PLACEHOLDER" -v links="$tournament_links_html" '
-          BEGIN { replaced=0 } {
-              if (index($0, placeholder)) { print links; replaced=1; } else { print $0; }
+
+          log_message "Replacing content within the tournament grid container..."
+          # Robust awk script to replace content between markers
+          awk -v start_marker="$START_MARKER_PATTERN" -v end_marker="$END_MARKER_PATTERN" -v links="$tournament_links_html" '
+          BEGIN { printing=1; found_start=0; }
+          {
+              if (index($0, start_marker)) {
+                  print $0; print links; printing=0; found_start=1;
+              }
+              else if (index($0, end_marker)) {
+                  print $0; printing=1;
+              }
+              else if (printing) {
+                  print $0;
+              }
           }
-          END { if (replaced == 0) { print "ERROR: Placeholder not found!" > "/dev/stderr"; exit 1; } }
+          END {
+              if (found_start == 0) { print "ERROR: Start marker pattern not found during awk processing!" > "/dev/stderr"; exit 1; }
+          }
           ' "$INDEX_HTML_FILE" > "$TEMP_INDEX_FILE"
+
           if [ $? -ne 0 ]; then log_message "ERROR: awk processing failed."; rm -f "$TEMP_INDEX_FILE"; exit 1; fi
           if [ ! -s "$TEMP_INDEX_FILE" ]; then log_message "ERROR: Temp file is empty."; rm -f "$TEMP_INDEX_FILE"; exit 1; fi
+
+          # --- Overwrite Original Index if Changed ---
           if ! cmp -s "$INDEX_HTML_FILE" "$TEMP_INDEX_FILE"; then
              log_message "Changes detected. Replacing original $INDEX_HTML_FILE."
              mv "$TEMP_INDEX_FILE" "$INDEX_HTML_FILE"
              log_message "$INDEX_HTML_FILE regeneration complete."
+             # Output that changes were made for the commit step condition
+             echo "index_changed=true" >> $GITHUB_OUTPUT
           else
              log_message "No effective changes detected in $INDEX_HTML_FILE. Keeping original."
              rm "$TEMP_INDEX_FILE"
+             echo "index_changed=false" >> $GITHUB_OUTPUT
           fi
         shell: bash
 
       - name: Commit and Push Changes
+        id: commit_push # Added id
         run: |
           set -e
-          slug="${{ steps.extract_info.outputs.slug }}" # Get slug for commit message
-          original_tdf_filename="${{ steps.find_tdf.outputs.tdf_filename }}" # Get original filename
-          tdf_path_in_incoming="incoming/$original_tdf_filename" # Reconstruct path
+          slug="${{ steps.extract_info.outputs.slug }}"
+          original_tdf_filename="${{ steps.find_tdf.outputs.tdf_filename }}"
+          tdf_path_in_incoming="incoming/$original_tdf_filename"
 
           # Configure Git Bot User
           git config --global user.name 'github-actions[bot]'
@@ -252,36 +279,31 @@ jobs:
           git add index.html
 
           # --- Cleanup Incoming Folder ---
-          # Check if the original TDF file still exists in the Git index for incoming/
-          # This handles cases where 'git mv' might not be automatically detected
+          # Remove from Git index if tracked
           if git ls-files --error-unmatch "$tdf_path_in_incoming" > /dev/null 2>&1; then
               echo "Explicitly removing processed TDF '$tdf_path_in_incoming' from Git index..."
-              git rm --cached "$tdf_path_in_incoming" # Remove from index only, file already moved
+              git rm --cached "$tdf_path_in_incoming"
           fi
-
-          # **NEW:** Explicitly remove the original file from the working directory if it still exists
-          # This ensures cleanup even if 'mv' somehow failed silently or wasn't tracked
+          # Remove from working directory
           if [ -f "$tdf_path_in_incoming" ]; then
              echo "Explicitly removing file '$tdf_path_in_incoming' from working directory..."
              rm -f "$tdf_path_in_incoming"
           fi
-          # Also add the 'incoming' directory itself to staging if the deletion needs to be recorded
-          # This might result in an empty directory commit if it's the last file, which is usually fine.
-          # Use 'git add incoming' cautiously if other files might be there unintentionally.
-          # A safer alternative might be to check if incoming/ is now empty and handle differently if needed.
-          # For now, just ensuring the file is gone is the primary goal.
 
           # --- Commit and Push ---
           # Check if there are changes staged for commit
-          if git diff --staged --quiet; then
-            echo "No changes staged for commit."
-          else
-            echo "Committing changes..."
+          # Use 'git status --porcelain' which is more reliable for detecting changes
+          if output=$(git status --porcelain) && [ ! -z "$output" ]; then
+            echo "Changes detected in staging area. Committing..."
+            echo "$output" # Log changes
             commit_message="Process tournament: ${{ env.TOURNAMENT_NAME }} (${slug})"
             git commit -m "$commit_message"
             echo "Pushing changes to branch main..."
-            # Add retry logic for potential transient push issues
             git push origin main || (sleep 5 && git push origin main) || (sleep 10 && git push origin main)
             echo "Push complete."
+            echo "committed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No changes staged for commit."
+            echo "committed=false" >> $GITHUB_OUTPUT
           fi
         shell: bash
