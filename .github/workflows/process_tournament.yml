@@ -14,9 +14,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        # Fetch depth 0 if you need full history for any reason, usually not needed here
-        # with:
-        #  fetch-depth: 0
 
       - name: Install Dependencies
         run: |
@@ -26,10 +23,7 @@ jobs:
       - name: Find Uploaded TDF File
         id: find_tdf
         run: |
-          # Find .tdf files in incoming, handle spaces, pick the first one found
-          # Assumes only one TDF is uploaded per push trigger event usually
           tdf_file=$(find incoming -maxdepth 1 -name '*.tdf' -print -quit)
-
           if [[ -z "$tdf_file" ]]; then
             echo "ERROR: No .tdf file found in incoming/ directory." >&2
             exit 1
@@ -43,190 +37,122 @@ jobs:
       - name: Extract Tournament Info and Create Slug
         id: extract_info
         run: |
-          set -e # Exit immediately if a command exits with a non-zero status.
+          set -e
           tdf_file="${{ steps.find_tdf.outputs.tdf_path }}"
-
-          # Extract name - exit if parsing fails or name is empty
           tournament_name=$(xmlstarlet sel -t -v "/tournament/data/name" "$tdf_file" 2>/dev/null || echo "")
           if [[ -z "$tournament_name" ]]; then
              echo "ERROR: Could not extract tournament name from '$tdf_file' or name is empty." >&2
              exit 1
           fi
           echo "Extracted Name: $tournament_name"
-
-          # Extract date (optional, adjust XPath if needed) - use current date as fallback
           tournament_date=$(xmlstarlet sel -t -v "/tournament/data/date" "$tdf_file" 2>/dev/null || echo "")
           if [[ -z "$tournament_date" ]]; then
             echo "WARNING: Could not extract date from TDF. Using current date for slug."
-            tournament_date=$(date +%Y-%m-%d) # Format YYYY-MM-DD
+            tournament_date=$(date +%Y-%m-%d)
           else
-            # Optional: Validate/reformat date if necessary here
             echo "Extracted Date: $tournament_date"
           fi
-
-          # Create a URL-friendly slug
-          # 1. Combine name and date
-          # 2. Convert to lowercase
-          # 3. Replace non-alphanumeric with hyphens
-          # 4. Replace multiple hyphens with single hyphen
-          # 5. Trim leading/trailing hyphens
           slug=$(echo "$tournament_name $tournament_date" | \
                  iconv -t ascii//TRANSLIT | \
                  tr '[:upper:]' '[:lower:]' | \
                  sed -e 's/[^a-zA-Z0-9]/-/g' -e 's/--\+/-/g' -e 's/^-//' -e 's/-$//')
-
           if [[ -z "$slug" ]]; then
-             echo "ERROR: Generated slug is empty. Check tournament name and date." >&2
+             echo "ERROR: Generated slug is empty." >&2
              exit 1
           fi
           echo "Generated Slug: $slug"
           echo "slug=$slug" >> $GITHUB_OUTPUT
-          echo "TOURNAMENT_NAME=$tournament_name" >> $GITHUB_ENV # Set env var for later steps
+          echo "TOURNAMENT_NAME=$tournament_name" >> $GITHUB_ENV
 
       - name: Create Tournament Directory Structure
         run: |
           slug="${{ steps.extract_info.outputs.slug }}"
           echo "Creating directory structure for $slug..."
-          # Create main folder and data subfolder, -p avoids error if exists
           mkdir -p "$slug/data"
 
       - name: Create Tournament index.html
         run: |
           set -e
           slug="${{ steps.extract_info.outputs.slug }}"
-          tournament_name_env="${{ env.TOURNAMENT_NAME }}" # Get name from env var set earlier
-
-          # Escape potential HTML special characters in the name for the title tag
-          # Using Python for robustness
+          tournament_name_env="${{ env.TOURNAMENT_NAME }}"
           escaped_title=$(python3 -c "import html; print(html.escape('''$tournament_name_env'''))")
-
           echo "Generating $slug/index.html..."
-
-          # Use cat with HEREDOC to create the file content.
-          # Keep EOF unquoted to allow ${escaped_title} substitution.
-          # Escape the $ in the JavaScript part to prevent shell substitution there.
           cat <<EOF > "$slug/index.html"
           <!DOCTYPE html>
           <html lang="en">
           <head>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <!-- Use the extracted and escaped tournament name in the title -->
-              <title>${escaped_title}</title> <!-- Shell substitutes this -->
-              <!-- Link to shared assets, relative path -->
+              <title>${escaped_title}</title>
               <link rel="preconnect" href="https://fonts.googleapis.com">
               <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
               <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
               <link rel="stylesheet" href="../assets/style.css">
           </head>
           <body>
-              <!-- Main Header (Consistent) -->
               <header class="main-header">
                   <div class="container">
                       <div class="logo"><a href="../" style="color: inherit; text-decoration: none;">MilanoVGC</a></div>
                       <nav>
-                          <!-- Add other static links if needed, pointing back to root or elsewhere -->
                            <a href="https://dhsufi.github.io/PokemonTeamListCreator/" target="_blank" rel="noopener noreferrer" class="button button-header">Create Teamlist</a>
                            <a href="../admin_upload.html" class="button button-header">Admin Upload</a>
                       </nav>
                   </div>
               </header>
-          
-              <!-- Tournament Specific Info Header -->
               <div class="tournament-info-header">
                   <div class="container">
                       <div class="info-left">
                           <h1 id="tournament-name">Loading Tournament...</h1>
-                          <p id="tournament-organizer" style="display: none;"></p> <!-- Initially hidden -->
+                          <p id="tournament-organizer" style="display: none;"></p>
                       </div>
                       <div class="info-right">
-                          <p id="tournament-location" style="display: none;"></p> <!-- Initially hidden -->
+                          <p id="tournament-location" style="display: none;"></p>
                       </div>
                   </div>
               </div>
-          
-              <!-- Main Content Area for Pairings/Standings -->
               <main>
                   <div class="container" id="tournament-content">
-                      <!-- Controls: Tabs and Search -->
                       <div class="controls">
-                          <div id="round-tabs">
-                              <!-- Round tabs will be generated by script.js -->
-                          </div>
+                          <div id="round-tabs"></div>
                           <div class="search-container">
                               <input type="text" id="search-input" placeholder="Search Player Name...">
                               <button id="clear-search-btn" aria-label="Clear search">×</button>
                           </div>
                       </div>
-          
-                      <!-- Pairings Section -->
                       <div id="pairings-container">
                           <h2 id="current-round-title">Loading Pairings...</h2>
                           <div id="loading-message" style="text-align: center; padding: 20px;">Loading data...</div>
                           <table id="pairings-table" class="results-table" style="display: none;">
-                              <thead>
-                                  <tr>
-                                      <th>Table</th>
-                                      <th>Player 1 (Record)</th>
-                                      <th>Player 2 (Record)</th>
-                                  </tr>
-                              </thead>
-                              <tbody id="pairings-body">
-                                  <!-- Pairings rows will be generated by script.js -->
-                              </tbody>
+                              <thead><tr><th>Table</th><th>Player 1 (Record)</th><th>Player 2 (Record)</th></tr></thead>
+                              <tbody id="pairings-body"></tbody>
                           </table>
                            <div id="no-search-results" style="display: none; text-align: center; padding: 20px;">No matching players found.</div>
                       </div>
-          
-                      <!-- Standings Section (Initially Hidden/Loading) -->
                       <div id="standings-container" style="display: none; margin-top: 40px;">
                           <h2 id="standings-title">Swiss Standings</h2>
                            <div id="standings-loading-message" style="text-align: center; padding: 20px;">Calculating final standings...</div>
                            <div id="no-standings-message" style="display: block; text-align: center; padding: 20px;">Standings will appear here after the final Swiss round concludes.</div>
                           <table id="standings-table" class="results-table">
-                               <thead>
-                                   <tr>
-                                       <th>Rank</th>
-                                       <th>Player</th>
-                                       <th>Record</th>
-                                       <th>OWP%</th>
-                                       <th>OOWP%</th>
-                                   </tr>
-                               </thead>
-                               <tbody id="standings-body">
-                                   <!-- Standings rows will be generated by script.js -->
-                               </tbody>
+                               <thead><tr><th>Rank</th><th>Player</th><th>Record</th><th>OWP%</th><th>OOWP%</th></tr></thead>
+                               <tbody id="standings-body"></tbody>
                           </table>
                       </div>
-                  </div> <!-- /container #tournament-content -->
+                  </div>
               </main>
-          
-              <!-- Footer (Consistent) -->
               <footer class="main-footer">
                 <div class="container">
-                    <!-- Escape the $ here -->
                     <p>© <span id="current-year">\${new Date().getFullYear()}</span> MilanoVGC. All rights reserved.</p>
                 </div>
               </footer>
-          
-              <!-- Link to shared JavaScript -->
               <script src="../assets/script.js"></script>
               <script>
-                  // Set current year in footer
                   const yearSpan = document.getElementById('current-year');
-                  if (yearSpan) {
-                      // This JS runs in the browser, it doesn't need the year hardcoded here
-                      yearSpan.textContent = new Date().getFullYear();
-                  }
+                  if (yearSpan) { yearSpan.textContent = new Date().getFullYear(); }
               </script>
           </body>
           </html>
           EOF
-          # Verify file creation
-          if [ ! -f "$slug/index.html" ]; then
-             echo "ERROR: Failed to create $slug/index.html" >&2
-             exit 1
-          fi
+          if [ ! -f "$slug/index.html" ]; then echo "ERROR: Failed to create $slug/index.html" >&2; exit 1; fi
           echo "$slug/index.html generated successfully."
         shell: bash
 
@@ -236,155 +162,87 @@ jobs:
           slug="${{ steps.extract_info.outputs.slug }}"
           tdf_path="${{ steps.find_tdf.outputs.tdf_path }}"
           destination_path="$slug/data/tournament_data.xml"
-
           echo "Moving '$tdf_path' to '$destination_path'..."
           mv "$tdf_path" "$destination_path"
-
-          # Verify move
-          if [ ! -f "$destination_path" ]; then
-             echo "ERROR: Failed to move TDF file to destination." >&2
-             exit 1
-          fi
+          if [ ! -f "$destination_path" ]; then echo "ERROR: Failed to move TDF file." >&2; exit 1; fi
           echo "TDF file moved successfully."
-          # Check if incoming is now empty (optional)
-          if [ -z "$(ls -A incoming)" ]; then
-             echo "Incoming directory is now empty."
-          else
-             echo "WARNING: Incoming directory still contains files."
-          fi
+          if [ -z "$(ls -A incoming)" ]; then echo "Incoming directory is now empty."; else echo "WARNING: Incoming directory still contains files."; fi
 
       - name: Regenerate Root Index Page (Template Method)
         run: |
-          # Ensure we are using bash and exit on error
           set -e
           set -o pipefail
-
-          # --- Configuration ---
-          INDEX_HTML_FILE="index.html" # Source template and final output file
+          INDEX_HTML_FILE="index.html"
           PLACEHOLDER="<!-- TOURNAMENT_LIST_PLACEHOLDER -->"
-          TEMP_INDEX_FILE="temp_index.html.$$" # Temporary file
-
-          # --- Helper Function for Logging ---
-          log_message() {
-            echo "[Regen Index Step] $1"
-          }
-
-          # --- Sanity Checks ---
+          TEMP_INDEX_FILE="temp_index.html.$$"
+          log_message() { echo "[Regen Index Step] $1"; }
           log_message "Starting regeneration of $INDEX_HTML_FILE..."
-          if [ ! -f "$INDEX_HTML_FILE" ]; then
-            log_message "ERROR: Template file '$INDEX_HTML_FILE' not found!"
-            exit 1
-          fi
-          if ! grep -qF "$PLACEHOLDER" "$INDEX_HTML_FILE"; then
-            log_message "ERROR: Placeholder '$PLACEHOLDER' not found in '$INDEX_HTML_FILE'!"
-            exit 1
-          fi
-
-          # --- Generate Tournament List HTML ---
+          if [ ! -f "$INDEX_HTML_FILE" ]; then log_message "ERROR: Template file '$INDEX_HTML_FILE' not found!"; exit 1; fi
+          if ! grep -qF "$PLACEHOLDER" "$INDEX_HTML_FILE"; then log_message "ERROR: Placeholder '$PLACEHOLDER' not found!"; exit 1; fi
           log_message "Scanning for valid tournament folders..."
           tournament_links_html=""
-          # Find directories, exclude common ones, check for required files
-          find . -maxdepth 1 -mindepth 1 -type d \
-              ! -name '.git' ! -name '.github' ! -name 'assets' ! -name 'incoming' ! -name 'data' ! -name 'node_modules' \
-              -exec test -f '{}/index.html' \; \
-              -exec test -f '{}/data/tournament_data.xml' \; \
-              -print | sort | while IFS= read -r dir_path; do
-
+          # CORRECTED: Use Process Substitution here
+          while IFS= read -r dir_path; do
               slug=$(basename "$dir_path")
               log_message "  Processing folder: $slug"
-
-              # Extract display name from XML
               display_name=$(xmlstarlet sel -t -v "/tournament/data/name" "$dir_path/data/tournament_data.xml" 2>/dev/null || echo "")
               if [ -z "$display_name" ]; then
                   log_message "    WARNING: Could not extract name from XML for $slug. Using formatted slug."
                   display_name=$(echo "$slug" | sed -e 's/-/ /g' -e 's/\b\(.\)/\u\1/g')
               fi
-
-              # Escape HTML characters in name
               safe_display_name=$(python3 -c "import html; print(html.escape('''$display_name'''))")
-
-              # Append HTML link string, ensuring proper formatting and newlines
               tournament_links_html+=$(printf '        <a href="./%s/" class="tournament-card">\n            %s\n        </a>\n' "$slug" "$safe_display_name")
-          done
+          done < <(find . -maxdepth 1 -mindepth 1 -type d \
+                      ! -name '.git' ! -name '.github' ! -name 'assets' ! -name 'incoming' ! -name 'data' ! -name 'node_modules' \
+                      -exec test -f '{}/index.html' \; \
+                      -exec test -f '{}/data/tournament_data.xml' \; \
+                      -print | sort)
 
+          # Check happens *after* the loop finishes, variable should now be populated
           if [ -z "$tournament_links_html" ]; then
               log_message "WARNING: No valid tournament folders found. List will be empty."
-              # Optional placeholder if list is empty
               # tournament_links_html="        <p class='no-tournaments-message'>No tournaments available yet.</p>\n"
           fi
-
-          # --- Replace Placeholder using awk ---
           log_message "Injecting generated links into template..."
           awk -v placeholder="$PLACEHOLDER" -v links="$tournament_links_html" '
           BEGIN { replaced=0 } {
-              # Use index() for robust placeholder finding, even with leading/trailing whitespace on the line
-              if (index($0, placeholder)) {
-                  # Print the generated links when placeholder is found
-                  print links;
-                  replaced=1;
-              } else {
-                  # Print other lines unmodified
-                  print $0;
-              }
+              if (index($0, placeholder)) { print links; replaced=1; } else { print $0; }
           }
-          END {
-              # Check if the placeholder was ever found and replaced
-              if (replaced == 0) {
-                  print "ERROR: Placeholder '" placeholder "' was not found during awk processing!" > "/dev/stderr";
-                  exit 1;
-              }
-          }
+          END { if (replaced == 0) { print "ERROR: Placeholder not found!" > "/dev/stderr"; exit 1; } }
           ' "$INDEX_HTML_FILE" > "$TEMP_INDEX_FILE"
-
-          # Check awk exit status and if the temp file was created and is not empty
           if [ $? -ne 0 ]; then log_message "ERROR: awk processing failed."; rm -f "$TEMP_INDEX_FILE"; exit 1; fi
-          if [ ! -s "$TEMP_INDEX_FILE" ]; then log_message "ERROR: Temp file is empty after awk processing."; rm -f "$TEMP_INDEX_FILE"; exit 1; fi
-
-          # --- Overwrite Original Index if Changed ---
-          # Compare binary content to avoid issues with whitespace/line ending changes
+          if [ ! -s "$TEMP_INDEX_FILE" ]; then log_message "ERROR: Temp file is empty."; rm -f "$TEMP_INDEX_FILE"; exit 1; fi
           if ! cmp -s "$INDEX_HTML_FILE" "$TEMP_INDEX_FILE"; then
              log_message "Changes detected. Replacing original $INDEX_HTML_FILE."
              mv "$TEMP_INDEX_FILE" "$INDEX_HTML_FILE"
              log_message "$INDEX_HTML_FILE regeneration complete."
           else
              log_message "No effective changes detected in $INDEX_HTML_FILE. Keeping original."
-             rm "$TEMP_INDEX_FILE" # Clean up unchanged temp file
+             rm "$TEMP_INDEX_FILE"
           fi
-        shell: bash # Explicitly use bash
+        shell: bash
 
       - name: Commit and Push Changes
         run: |
           set -e
-          slug="${{ steps.extract_info.outputs.slug }}" # Get slug for commit message
+          slug="${{ steps.extract_info.outputs.slug }}"
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-
-          # Add the newly created/modified tournament folder, the updated root index.html
-          # and explicitly remove the processed file from incoming/ if git doesn't track the move correctly
-          git add "$slug" # Add the whole tournament directory
-          git add index.html # Add the potentially modified root index
-
-          # Check if the original TDF file still exists in incoming (it shouldn't after mv)
-          # If it does, remove it explicitly from staging area.
+          git add "$slug"
+          git add index.html
           tdf_path_in_incoming="incoming/$(basename ${{ steps.find_tdf.outputs.tdf_path }})"
           if git ls-files --error-unmatch "$tdf_path_in_incoming" > /dev/null 2>&1; then
               echo "Explicitly removing processed TDF '$tdf_path_in_incoming' from staging area..."
-              git rm --cached "$tdf_path_in_incoming" # Remove from index but keep file if mv failed somehow locally
+              git rm --cached "$tdf_path_in_incoming"
           fi
-          # Also ensure the source file is gone locally if mv failed but we proceed
           rm -f "$tdf_path_in_incoming"
-
-
-          # Check if there are changes staged for commit
           if git diff --staged --quiet; then
             echo "No changes staged for commit."
           else
             echo "Committing changes..."
-            # Use extracted tournament name in commit message if available
             commit_message="Process tournament: ${{ env.TOURNAMENT_NAME }} (${slug})"
             git commit -m "$commit_message"
             echo "Pushing changes to branch main..."
-            # Add retry logic for potential transient push issues
             git push origin main || (sleep 5 && git push origin main) || (sleep 10 && git push origin main)
             echo "Push complete."
           fi
