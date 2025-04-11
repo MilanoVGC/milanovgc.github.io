@@ -33,6 +33,9 @@ jobs:
           fi
           echo "Processing file: $tdf_file"
           echo "tdf_path=$tdf_file" >> $GITHUB_OUTPUT
+          # Also output just the filename for later use
+          echo "tdf_filename=$(basename "$tdf_file")" >> $GITHUB_OUTPUT
+
 
       - name: Extract Tournament Info and Create Slug
         id: extract_info
@@ -77,6 +80,7 @@ jobs:
           tournament_name_env="${{ env.TOURNAMENT_NAME }}"
           escaped_title=$(python3 -c "import html; print(html.escape('''$tournament_name_env'''))")
           echo "Generating $slug/index.html..."
+          # Create the specific index.html for the tournament page
           cat <<EOF > "$slug/index.html"
           <!DOCTYPE html>
           <html lang="en">
@@ -160,13 +164,24 @@ jobs:
         run: |
           set -e
           slug="${{ steps.extract_info.outputs.slug }}"
-          tdf_path="${{ steps.find_tdf.outputs.tdf_path }}"
+          tdf_path="${{ steps.find_tdf.outputs.tdf_path }}" # Full path e.g., incoming/file.tdf
           destination_path="$slug/data/tournament_data.xml"
+
           echo "Moving '$tdf_path' to '$destination_path'..."
+          # Use -v for verbose output if needed: mv -v "$tdf_path" "$destination_path"
           mv "$tdf_path" "$destination_path"
-          if [ ! -f "$destination_path" ]; then echo "ERROR: Failed to move TDF file." >&2; exit 1; fi
-          echo "TDF file moved successfully."
-          if [ -z "$(ls -A incoming)" ]; then echo "Incoming directory is now empty."; else echo "WARNING: Incoming directory still contains files."; fi
+
+          # Verify move was successful
+          if [ ! -f "$destination_path" ]; then
+             echo "ERROR: Failed to move TDF file. Destination '$destination_path' not found." >&2
+             exit 1
+          fi
+          # Verify source is gone (mv should remove it)
+          if [ -f "$tdf_path" ]; then
+             echo "WARNING: Source file '$tdf_path' still exists after mv command. Attempting removal." >&2
+             # We will handle removal explicitly in the commit step just in case
+          fi
+          echo "TDF file moved/renamed successfully."
 
       - name: Regenerate Root Index Page (Template Method)
         run: |
@@ -181,7 +196,7 @@ jobs:
           if ! grep -qF "$PLACEHOLDER" "$INDEX_HTML_FILE"; then log_message "ERROR: Placeholder '$PLACEHOLDER' not found!"; exit 1; fi
           log_message "Scanning for valid tournament folders..."
           tournament_links_html=""
-          # CORRECTED: Use Process Substitution here
+          # Use Process Substitution for the loop
           while IFS= read -r dir_path; do
               slug=$(basename "$dir_path")
               log_message "  Processing folder: $slug"
@@ -198,10 +213,8 @@ jobs:
                       -exec test -f '{}/data/tournament_data.xml' \; \
                       -print | sort)
 
-          # Check happens *after* the loop finishes, variable should now be populated
           if [ -z "$tournament_links_html" ]; then
               log_message "WARNING: No valid tournament folders found. List will be empty."
-              # tournament_links_html="        <p class='no-tournaments-message'>No tournaments available yet.</p>\n"
           fi
           log_message "Injecting generated links into template..."
           awk -v placeholder="$PLACEHOLDER" -v links="$tournament_links_html" '
@@ -225,17 +238,41 @@ jobs:
       - name: Commit and Push Changes
         run: |
           set -e
-          slug="${{ steps.extract_info.outputs.slug }}"
+          slug="${{ steps.extract_info.outputs.slug }}" # Get slug for commit message
+          original_tdf_filename="${{ steps.find_tdf.outputs.tdf_filename }}" # Get original filename
+          tdf_path_in_incoming="incoming/$original_tdf_filename" # Reconstruct path
+
+          # Configure Git Bot User
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+          # --- Staging Area ---
+          # Add the new/modified tournament folder and the updated root index.html
           git add "$slug"
           git add index.html
-          tdf_path_in_incoming="incoming/$(basename ${{ steps.find_tdf.outputs.tdf_path }})"
+
+          # --- Cleanup Incoming Folder ---
+          # Check if the original TDF file still exists in the Git index for incoming/
+          # This handles cases where 'git mv' might not be automatically detected
           if git ls-files --error-unmatch "$tdf_path_in_incoming" > /dev/null 2>&1; then
-              echo "Explicitly removing processed TDF '$tdf_path_in_incoming' from staging area..."
-              git rm --cached "$tdf_path_in_incoming"
+              echo "Explicitly removing processed TDF '$tdf_path_in_incoming' from Git index..."
+              git rm --cached "$tdf_path_in_incoming" # Remove from index only, file already moved
           fi
-          rm -f "$tdf_path_in_incoming"
+
+          # **NEW:** Explicitly remove the original file from the working directory if it still exists
+          # This ensures cleanup even if 'mv' somehow failed silently or wasn't tracked
+          if [ -f "$tdf_path_in_incoming" ]; then
+             echo "Explicitly removing file '$tdf_path_in_incoming' from working directory..."
+             rm -f "$tdf_path_in_incoming"
+          fi
+          # Also add the 'incoming' directory itself to staging if the deletion needs to be recorded
+          # This might result in an empty directory commit if it's the last file, which is usually fine.
+          # Use 'git add incoming' cautiously if other files might be there unintentionally.
+          # A safer alternative might be to check if incoming/ is now empty and handle differently if needed.
+          # For now, just ensuring the file is gone is the primary goal.
+
+          # --- Commit and Push ---
+          # Check if there are changes staged for commit
           if git diff --staged --quiet; then
             echo "No changes staged for commit."
           else
@@ -243,6 +280,8 @@ jobs:
             commit_message="Process tournament: ${{ env.TOURNAMENT_NAME }} (${slug})"
             git commit -m "$commit_message"
             echo "Pushing changes to branch main..."
+            # Add retry logic for potential transient push issues
             git push origin main || (sleep 5 && git push origin main) || (sleep 10 && git push origin main)
             echo "Push complete."
           fi
+        shell: bash
