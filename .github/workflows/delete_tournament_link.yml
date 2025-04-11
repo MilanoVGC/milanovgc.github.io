@@ -1,0 +1,106 @@
+name: Delete Tournament Link from Homepage
+
+on:
+  repository_dispatch:
+    types: [delete-tournament-link] # Triggered by the custom event sent from upload.js
+
+permissions:
+  contents: write # Allow workflow to commit changes back to the repo
+
+jobs:
+  delete-link:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }} # Use the default GITHUB_TOKEN for checkout and commit
+
+      - name: Get Tournament Slug from Payload
+        id: get_slug
+        run: |
+          slug_to_delete="${{ github.event.client_payload.slug }}"
+          if [[ -z "$slug_to_delete" ]]; then
+            echo "ERROR: No slug provided in the event payload." >&2
+            exit 1
+          fi
+          # Basic validation/sanitization (optional, but good practice)
+          # Allow alphanumeric and hyphens
+          if [[ ! "$slug_to_delete" =~ ^[a-zA-Z0-9-]+$ ]]; then
+             echo "ERROR: Invalid slug format received: $slug_to_delete" >&2
+             exit 1
+          fi
+          echo "Slug to delete: $slug_to_delete"
+          echo "slug=$slug_to_delete" >> $GITHUB_OUTPUT
+
+      - name: Remove Link from index.html
+        id: remove_link
+        run: |
+          slug="${{ steps.get_slug.outputs.slug }}"
+          index_file="index.html"
+          temp_index_file="temp_index.html.$$"
+
+          echo "Attempting to remove link for slug '$slug' from $index_file"
+
+          if [ ! -f "$index_file" ]; then
+             echo "ERROR: $index_file not found!" >&2
+             exit 1
+          fi
+
+          # Use awk to find the line containing the specific href and skip it.
+          # This assumes the entire <a ...>...</a> tag for a tournament fits on one line.
+          # If tags can span multiple lines, this approach needs to be more complex.
+          awk -v slug_pattern="href=\"./${slug}/\"" '
+          BEGIN { found=0 }
+          {
+              if ($0 ~ slug_pattern) {
+                  # Found the line, skip printing it
+                  found=1;
+                  print "<!-- Link for " slug " removed by workflow -->" # Optional comment
+              } else {
+                  # Print lines that do not contain the pattern
+                  print $0;
+              }
+          }
+          END {
+              if (found == 0) {
+                  print "WARNING: No link found for slug '" slug "' in index.html. No changes made." > "/dev/stderr";
+                  # Exit with a specific code or set an output if needed
+                  exit 0; # Exit successfully even if not found, file won't be changed
+              } else {
+                  print "Link removal pattern applied." > "/dev/stderr";
+              }
+          }' "$index_file" > "$temp_index_file"
+
+          # Check if awk succeeded and the temp file was created
+          if [ $? -ne 0 ] || [ ! -f "$temp_index_file" ]; then
+            echo "ERROR: Failed to process $index_file with awk." >&2
+            rm -f "$temp_index_file"
+            exit 1
+          fi
+
+          # Check if the file content actually changed
+          if cmp -s "$index_file" "$temp_index_file"; then
+             echo "No changes detected in $index_file after processing. Link might have been absent."
+             rm "$temp_index_file"
+             echo "changed=false" >> $GITHUB_OUTPUT
+          else
+             echo "Changes detected. Replacing original $index_file."
+             mv "$temp_index_file" "$index_file"
+             echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and Push Updated Index
+        if: steps.remove_link.outputs.changed == 'true' # Only run if changes were made
+        run: |
+          slug="${{ steps.get_slug.outputs.slug }}"
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m "Remove link for deleted tournament: ${slug}"
+          echo "Pushing updated index.html to branch ${{ github.ref_name }}"
+          git push origin ${{ github.ref_name }} # Push to the branch the workflow ran on (likely main)
+
+      - name: No Changes to Commit
+        if: steps.remove_link.outputs.changed == 'false'
+        run: echo "No changes were made to index.html."
