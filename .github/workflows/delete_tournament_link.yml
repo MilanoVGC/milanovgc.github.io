@@ -39,36 +39,62 @@ jobs:
           index_file="index.html"
           temp_index_file="temp_index.html.$$" # Use process ID for temp file uniqueness
 
-          echo "Attempting to remove link for slug '$slug' from $index_file"
+          echo "Attempting to remove link block for slug '$slug' from $index_file"
 
           if [ ! -f "$index_file" ]; then
              echo "ERROR: $index_file not found!" >&2
              exit 1
           fi
 
-          # Revised awk command: Removed 'exit 0;' from the 'if (found == 0)' block
+          # Corrected awk script to handle multi-line link blocks
           awk -v slug_pattern="href=\"./${slug}/\"" -v slug="${slug}" '
-          BEGIN { found=0 }
+          BEGIN {
+              skip=0;      # Flag: 1 if we are inside the block to be skipped, 0 otherwise
+              removed=0;   # Flag: 1 if we successfully identified and skipped a block
+          }
           {
-              # Check if the current line contains the href pattern
-              if ($0 ~ slug_pattern) {
-                  found=1;
-                  # Print a comment indicating removal instead of the original line
-                  print "<!-- Link for " slug " removed by workflow -->";
-              } else {
-                  # Print lines that do not contain the pattern
-                  print $0;
+              # If we find the start pattern AND we are not already skipping
+              if ($0 ~ slug_pattern && skip == 0) {
+                  skip=1;      # Start skipping
+                  removed=1;   # Mark that removal was initiated
+                  # Do not print this starting line, move to next line
+                  next;
               }
+
+              # If we are currently skipping lines
+              if (skip == 1) {
+                  # Check if this line contains the closing tag
+                  if ($0 ~ /<\/a>/) {
+                      skip=0;      # Stop skipping
+                      # Print the "removed" comment *once* after skipping the block
+                      # Add appropriate indentation if desired
+                      print "                <!-- Link block for " slug " removed by workflow -->";
+                      # Do not print the closing </a> line, move to next line
+                      next;
+                  }
+                  # If skipping, but not the end tag, just skip this line
+                  else {
+                      next;
+                  }
+              }
+
+              # If we are not skipping, print the current line
+              print $0;
           }
           END {
-              if (found == 0) {
-                  # Use awk variable "slug" here, escape single quotes with \047
-                  print "WARNING: No link found for slug \047" slug "\047 in index.html. No changes made." > "/dev/stderr";
-                  # REMOVED: exit 0;
+              # Check if we started skipping but never finished (malformed HTML?)
+              if (skip == 1) {
+                  print "ERROR: Found start of link block but not the closing </a> tag for slug \047" slug "\047!" > "/dev/stderr";
+                  exit 1; # Indicate error
+              }
+              # Report if the block was successfully removed or never found
+              if (removed == 0) {
+                  print "WARNING: No link block found for slug \047" slug "\047 in index.html. No changes made." > "/dev/stderr";
               } else {
-                  print "Link removal pattern applied successfully." > "/dev/stderr";
+                  print "Link block removal pattern applied successfully." > "/dev/stderr";
               }
           }' "$index_file" > "$temp_index_file"
+
 
           # Check if awk command succeeded (exit status 0)
           if [ $? -ne 0 ]; then
@@ -76,7 +102,7 @@ jobs:
               rm -f "$temp_index_file" # Clean up temp file on error
               exit 1
           elif [ ! -s "$temp_index_file" ]; then
-              # Check if temp file is empty (e.g., if index.html was empty)
+              # Check if temp file is empty
               echo "ERROR: Processed file $temp_index_file is empty. Aborting." >&2
               rm -f "$temp_index_file"
               exit 1
@@ -92,6 +118,7 @@ jobs:
              mv "$temp_index_file" "$index_file"
              echo "changed=true" >> $GITHUB_OUTPUT
           fi
+        shell: bash # Ensure bash is used
 
       - name: Commit and Push Updated Index
         if: steps.remove_link.outputs.changed == 'true' # Only run if changes were made
